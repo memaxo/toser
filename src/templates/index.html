@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToSer - Terms of Service Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #result {
+            margin-top: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #fce4e4;
+            border: 1px solid #e74c3c;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        #overall-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .category-card {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .category-card h3 {
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .weight {
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+        .score-bar {
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            height: 20px;
+            margin-bottom: 10px;
+        }
+        .score {
+            background-color: #3498db;
+            height: 100%;
+            border-radius: 4px;
+            color: white;
+            text-align: right;
+            padding-right: 5px;
+            line-height: 20px;
+            font-size: 0.8em;
+        }
+        #summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        #loading {
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>ToSer</h1>
+    <p>Analyze Terms of Service with ease using AI</p>
+    <div id="input-form">
+        <input type="url" id="tos-url" placeholder="Enter the URL of the Terms of Service document" required>
+        <button onclick="analyzeToS()">Analyze</button>
+    </div>
+    <div id="loading">Analyzing... Please wait.</div>
+    <div id="result"></div>
+
+    <script>
+        async function analyzeToS() {
+            const url = document.getElementById('tos-url').value;
+            if (!url) {
+                showError('Please enter a URL');
+                return;
+            }
+
+            document.getElementById('input-form').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').innerHTML = '';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred while analyzing the Terms of Service.');
+                }
+
+                showStructuredResult(data);
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`Error: ${error.message}`);
+            } finally {
+                document.getElementById('input-form').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function showStructuredResult(analysis) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+
+            // Overall Score
+            const overallScoreDiv = document.createElement('div');
+            overallScoreDiv.id = 'overall-score';
+            overallScoreDiv.innerHTML = `<h2>Overall Score: ${analysis.overall_score?.toFixed(1) || 'N/A'}/10</h2>`;
+            resultDiv.appendChild(overallScoreDiv);
+
+            // Chart
+            const chartCanvas = document.createElement('canvas');
+            chartCanvas.id = 'score-chart';
+            resultDiv.appendChild(chartCanvas);
+
+            const chartData = {
+                labels: analysis.categories?.map(c => c.name) || [],
+                datasets: [{
+                    label: 'Category Scores',
+                    data: analysis.categories?.map(c => c.score) || [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                }]
+            };
+
+            new Chart(chartCanvas, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Category Breakdown
+            const breakdownDiv = document.createElement('div');
+            breakdownDiv.id = 'category-breakdown';
+
+            if (analysis.categories && analysis.categories.length > 0) {
+                analysis.categories.forEach((category) => {
+                    const categoryCard = document.createElement('div');
+                    categoryCard.className = 'category-card';
+                    categoryCard.innerHTML = `
+                        <h3>${category.name} <span class="weight">(${category.weight}%)</span></h3>
+                        <div class="score-bar">
+                            <div class="score" style="width: ${(category.score || 0) * 10}%;">${category.score?.toFixed(1) || 'N/A'}/10</div>
+                        </div>
+                        <p>${category.explanation || 'No explanation provided.'}</p>
+                    `;
+                    breakdownDiv.appendChild(categoryCard);
+                });
+            } else {
+                breakdownDiv.innerHTML = '<p>No category breakdown available.</p>';
+            }
+
+            resultDiv.appendChild(breakdownDiv);
+
+            // Summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.id = 'summary';
+            summaryDiv.innerHTML = `<h3>Summary</h3><p>${analysis.summary || 'No summary available.'}</p>`;
+            resultDiv.appendChild(summaryDiv);
+        }
+
+        function showError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
