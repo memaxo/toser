@@ -5,68 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ToSer - Terms of Service Analyzer</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #F0F0F0;
+            margin: 0;
+            padding: 0;
+            background-color: #1A2A3A;
+        }
+        .container {
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3.5rem;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        h2, h3 {
+            color: #FFD700;
         }
         input[type="url"] {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 10px 0;
-            border: 1px solid #ddd;
+            border: none;
             border-radius: 4px;
+            background-color: #2C3E50;
+            color: #F0F0F0;
+            font-size: 16px;
         }
         button {
-            background-color: #3498db;
-            color: white;
+            background-color: #FFD700;
+            color: #1A2A3A;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
             font-size: 16px;
             border-radius: 4px;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: 600;
         }
         button:hover {
-            background-color: #2980b9;
+            background-color: #FFC000;
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
         }
         #result {
-            margin-top: 20px;
-            background-color: white;
-            padding: 20px;
+            margin-top: 30px;
+            background-color: #2C3E50;
+            padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .error {
-            color: #e74c3c;
+            color: #FF6B6B;
             font-weight: bold;
-            padding: 10px;
-            background-color: #fce4e4;
-            border: 1px solid #e74c3c;
+            padding: 15px;
+            background-color: rgba(255,107,107,0.1);
+            border-left: 4px solid #FF6B6B;
             border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        #overall-score {
-            font-size: 24px;
-            font-weight: bold;
-            color: #27ae60;
-            text-align: center;
             margin-bottom: 20px;
         }
+        #overall-score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
         .category-card {
-            background-color: #fff;
+            background-color: #34495E;
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
         }
         .category-card h3 {
             margin-top: 0;
@@ -75,47 +100,85 @@
             align-items: center;
         }
         .weight {
-            font-size: 0.8em;
-            color: #7f8c8d;
+            font-size: 0.9em;
+            color: #BDC3C7;
         }
         .score-bar {
-            background-color: #ecf0f1;
+            background-color: #2C3E50;
             border-radius: 4px;
-            height: 20px;
-            margin-bottom: 10px;
+            height: 24px;
+            margin-bottom: 15px;
+            overflow: hidden;
         }
         .score {
-            background-color: #3498db;
+            background-color: #3498DB;
             height: 100%;
             border-radius: 4px;
-            color: white;
+            color: #FFFFFF;
             text-align: right;
-            padding-right: 5px;
-            line-height: 20px;
-            font-size: 0.8em;
+            padding-right: 10px;
+            line-height: 24px;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: width 0.5s ease-out;
+        }
+        #summary, #red-flags {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #34495E;
+            border-radius: 8px;
         }
         #summary {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
+            border-left: 4px solid #FFD700;
+        }
+        #red-flags {
+            border-left: 4px solid #FF6B6B;
+        }
+        #red-flags h3 {
+            color: #FF6B6B;
+        }
+        #red-flags ul {
+            padding-left: 20px;
+        }
+        #red-flags li {
+            margin-bottom: 10px;
         }
         #loading {
             text-align: center;
             display: none;
+            font-size: 1.2em;
+            margin-top: 20px;
+            color: #FFD700;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        #loading .dot {
+            animation: pulse 1.5s infinite;
+            display: inline-block;
+        }
+        #loading .dot:nth-child(2) { animation-delay: 0.5s; }
+        #loading .dot:nth-child(3) { animation-delay: 1s; }
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            h1 { font-size: 2.5rem; }
+            button { width: 100%; }
         }
     </style>
 </head>
 <body>
-    <h1>ToSer</h1>
-    <p>Analyze Terms of Service with ease using AI</p>
-    <div id="input-form">
-        <input type="url" id="tos-url" placeholder="Enter the URL of the Terms of Service document" required>
-        <button onclick="analyzeToS()">Analyze</button>
+    <div class="container">
+        <h1>ToSer</h1>
+        <p>Analyze Terms of Service with ease using AI</p>
+        <div id="input-form">
+            <input type="url" id="tos-url" placeholder="Enter the URL of the Terms of Service document" required>
+            <button onclick="analyzeToS()">Analyze</button>
+        </div>
+        <div id="loading">Analyzing<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+        <div id="result"></div>
     </div>
-    <div id="loading">Analyzing... Please wait.</div>
-    <div id="result"></div>
 
     <script>
         async function analyzeToS() {
@@ -174,7 +237,7 @@
                 datasets: [{
                     label: 'Category Scores',
                     data: analysis.categories?.map(c => c.score) || [],
-                    backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                    backgroundColor: '#3498DB'
                 }]
             };
 
@@ -186,7 +249,11 @@
                     scales: {
                         x: {
                             beginAtZero: true,
-                            max: 10
+                            max: 10,
+                            ticks: { color: '#F0F0F0' }
+                        },
+                        y: {
+                            ticks: { color: '#F0F0F0' }
                         }
                     },
                     plugins: {
@@ -219,6 +286,16 @@
             }
 
             resultDiv.appendChild(breakdownDiv);
+
+            // Red Flags
+            if (analysis.red_flags && analysis.red_flags.length > 0) {
+                const redFlagsDiv = document.createElement('div');
+                redFlagsDiv.id = 'red-flags';
+                redFlagsDiv.innerHTML = '<h3>⚠️ Red Flags</h3><ul>' + 
+                    analysis.red_flags.map(flag => `<li>${flag}</li>`).join('') + 
+                    '</ul>';
+                resultDiv.appendChild(redFlagsDiv);
+            }
 
             // Summary
             const summaryDiv = document.createElement('div');
