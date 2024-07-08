@@ -34,7 +34,9 @@ class TestToSerApp(unittest.TestCase):
 
     @patch('src.analysis.fetch_tos_document')
     @patch('src.analysis.analyze_tos')
-    def test_analyze_route_valid_url(self, mock_analyze_tos, mock_fetch_tos_document):
+    @patch('os.environ.get')
+    def test_analyze_route_valid_url(self, mock_environ_get, mock_analyze_tos, mock_fetch_tos_document):
+        mock_environ_get.return_value = 'fake_api_key'
         mock_fetch_tos_document.return_value = "Google Terms of Service"
         mock_analyze_tos.return_value = {
             "categories": [
