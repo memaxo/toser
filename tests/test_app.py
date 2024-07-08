@@ -35,22 +35,23 @@ class TestToSerApp(unittest.TestCase):
     @patch('src.analysis.fetch_tos_document')
     @patch('src.analysis.analyze_tos')
     def test_analyze_route_valid_url(self, mock_analyze_tos, mock_fetch_tos_document):
-        mock_fetch_tos_document.return_value = "Sample ToS document"
+        mock_fetch_tos_document.return_value = "Google Terms of Service"
         mock_analyze_tos.return_value = {
             "categories": [
                 {
-                    "name": "Sample Category",
-                    "weight": 100,
-                    "score": 5.0,
-                    "explanation": "Sample explanation"
+                    "name": "Privacy and Data Security",
+                    "weight": 25,
+                    "score": 6.5,
+                    "explanation": "Google's privacy practices are detailed but raise some concerns."
                 }
             ],
-            "overall_score": 5.0,
-            "summary": "Sample summary"
+            "overall_score": 6.5,
+            "summary": "Google's Terms of Service are comprehensive but have some areas of concern.",
+            "red_flags": ["Extensive data collection practices"]
         }
         
         response = self.app.post('/analyze', 
-                                 data=json.dumps({'url': 'https://www.example.com/tos'}),
+                                 data=json.dumps({'url': 'https://policies.google.com/terms?hl=en-US'}),
                                  content_type='application/json')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
