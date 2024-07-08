@@ -74,9 +74,14 @@ To run the tests, follow these steps:
 
 1. Ensure you have installed all the required dependencies as mentioned in the Setup section.
 
-2. Run the tests using the following command:
+2. Run the tests using the following command from the project root directory:
    ```
-   python -m pytest tests/
+   PYTHONPATH=. python -m pytest tests/
+   ```
+   
+   On Windows, use:
+   ```
+   set PYTHONPATH=. && python -m pytest tests/
    ```
 
 ## Usage
