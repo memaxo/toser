@@ -56,12 +56,28 @@ ToSer is an AI-powered web application that analyzes Terms of Service documents,
      ```
      On Windows, use `set GEMINI_API_KEY=your-api-key-here`
 
-5. Start the Flask application:
+5. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+6. Start the Flask application:
    ```
    python app.py
    ```
 
-6. Open a web browser and navigate to `http://localhost:5000`
+7. Open a web browser and navigate to `http://localhost:5000`
+
+## Running Tests
+
+To run the tests, follow these steps:
+
+1. Ensure you have installed all the required dependencies as mentioned in the Setup section.
+
+2. Run the tests using the following command:
+   ```
+   python -m pytest tests/
+   ```
 
 ## Usage
 
