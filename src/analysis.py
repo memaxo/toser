@@ -136,22 +136,29 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         logger.debug(f"Raw API response (first 1000 characters): {str(response)[:1000]}")
 
         # Extract the text content from the response
-        if hasattr(response, 'text'):
-            response_text = response.text
-        elif hasattr(response, 'parts') and len(response.parts) > 0:
-            response_text = response.parts[0].text
-        else:
-            raise ValueError("Unexpected response format from Gemini API")
+        response_text = response.text
 
-        # Assuming response_text is already a dictionary
-        analysis_json = response_text
+        # Clean the response text by removing markdown code block syntax
+        cleaned_response = clean_response_text(response_text)
+        
+        logger.debug(f"Cleaned response text: {cleaned_response[:1000]}")  # Log first 1000 characters
 
-        logger.debug(f"Response structure: {list(analysis_json.keys())}")
+        # Parse the JSON response
+        try:
+            analysis_json = json.loads(cleaned_response)
+            
+            # Post-processing to ensure consistency
+            cleaned_analysis = post_process_analysis(analysis_json)
 
-        # Post-processing to ensure consistency
-        cleaned_analysis = post_process_analysis(analysis_json)
+            return cleaned_analysis
 
-        return cleaned_analysis
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse API response as JSON: {e}")
+            logger.error(f"Problematic text: {cleaned_response[:500]}")
+            return {
+                "error": "Failed to parse the API response as JSON.",
+                "raw_response": cleaned_response[:1000]
+            }
 
     except ValueError as ve:
         logger.error(f"ValueError in analysis: {str(ve)}")
