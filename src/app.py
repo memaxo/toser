@@ -42,19 +42,23 @@ def analyze():
             return jsonify(analysis), 400
 
         # Validate the structure of the analysis result
-        expected_keys = {"categories", "overall_score", "summary", "company_name", "letter_grade", "red_flags", "green_flags"}
-        if not all(key in analysis for key in expected_keys):
-            logger.error("Analysis result is missing expected keys")
-            return jsonify({'error': 'Invalid analysis result structure'}), 500
+        required_keys = {"initial_assessment", "categories", "final_score", "letter_grade", "summary", "green_flags", "red_flags"}
+        if not all(key in analysis for key in required_keys):
+            missing_keys = required_keys - set(analysis.keys())
+            logger.error(f"Analysis result is missing expected keys: {missing_keys}")
+            return jsonify({'error': f'Invalid analysis result structure. Missing keys: {missing_keys}'}), 500
 
         for category in analysis["categories"]:
-            if not all(key in category for key in ["name", "weight", "score", "explanation"]):
+            if not all(key in category for key in ["name", "user_friendly_aspect", "concerning_aspect", "score", "justification"]):
                 logger.error("Category is missing expected keys")
                 return jsonify({'error': 'Invalid category structure in analysis result'}), 500
 
         logger.info("Analysis completed successfully")
         return jsonify(analysis)
 
+    except ValueError as ve:
+        logger.error(f"ValueError in analysis: {str(ve)}")
+        return jsonify({'error': str(ve)}), 400
     except Exception as e:
         logger.exception("An unexpected error occurred during analysis")
         return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500

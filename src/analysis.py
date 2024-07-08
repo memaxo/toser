@@ -133,37 +133,29 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
             }
         )
         
-        logger.debug(f"Raw API response: {response}")
+        logger.debug(f"Raw API response (first 1000 characters): {str(response)[:1000]}")
 
         # Extract the text content from the response
-        if hasattr(response, 'parts'):
-            response_text = response.parts[0].text
-        elif hasattr(response, 'text'):
+        if hasattr(response, 'text'):
             response_text = response.text
+        elif hasattr(response, 'parts') and len(response.parts) > 0:
+            response_text = response.parts[0].text
         else:
-            response_text = str(response)
+            raise ValueError("Unexpected response format from Gemini API")
 
-        # Clean the response text by removing markdown code block syntax
-        cleaned_response = clean_response_text(response_text)
-        
-        logger.debug(f"Cleaned response text: {cleaned_response[:1000]}")  # Log first 1000 characters
+        # Assuming response_text is already a dictionary
+        analysis_json = response_text
 
-        # Parse the JSON response
-        try:
-            analysis_json = json.loads(cleaned_response)
-            
-            # Post-processing to ensure consistency
-            cleaned_analysis = post_process_analysis(analysis_json)
+        logger.debug(f"Response structure: {list(analysis_json.keys())}")
 
-            return cleaned_analysis
+        # Post-processing to ensure consistency
+        cleaned_analysis = post_process_analysis(analysis_json)
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse API response as JSON: {e}")
-            logger.error(f"Problematic text: {cleaned_response[:500]}")  # Log the first 500 characters of the problematic text
-            return {
-                "error": "Failed to parse the API response as JSON.",
-                "raw_response": cleaned_response[:1000]  # Include first 1000 characters of the cleaned response
-            }
+        return cleaned_analysis
+
+    except ValueError as ve:
+        logger.error(f"ValueError in analysis: {str(ve)}")
+        return {"error": str(ve)}
 
     except Exception as e:
         logger.exception("An error occurred while analyzing the Terms of Service")
@@ -180,14 +172,19 @@ def clean_response_text(text: str) -> str:
     return cleaned.strip()
 
 def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
+    # Check for completeness of the response
+    required_keys = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
+    missing_keys = [key for key in required_keys if key not in analysis]
+    if missing_keys:
+        raise ValueError(f"Analysis is missing required keys: {', '.join(missing_keys)}")
+
     # Ensure all required fields are present
-    required_fields = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
-    for field in required_fields:
+    for field in required_keys:
         if field not in analysis:
             analysis[field] = "Not provided" if field in ['initial_assessment', 'letter_grade', 'summary'] else []
 
     # Ensure final_score is within 0-10 range
-    analysis['final_score'] = max(0, min(10, analysis['final_score']))
+    analysis['final_score'] = max(0, min(10, float(analysis['final_score'])))
 
     # Ensure categories have all required fields
     for category in analysis['categories']:
