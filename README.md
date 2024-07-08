@@ -76,12 +76,12 @@ To run the tests, follow these steps:
 
 2. Run the tests using the following command from the project root directory:
    ```
-   PYTHONPATH=. python -m pytest tests/
+   PYTHONPATH=./src python -m pytest tests/
    ```
    
    On Windows, use:
    ```
-   set PYTHONPATH=. && python -m pytest tests/
+   set PYTHONPATH=./src && python -m pytest tests/
    ```
 
 ## Usage

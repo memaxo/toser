@@ -1,6 +1,6 @@
 import unittest
 from flask import json
-from app import app
+from src.app import app
 
 class TestToSerApp(unittest.TestCase):
     def setUp(self):
