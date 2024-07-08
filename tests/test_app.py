@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 from flask import json
 from src.app import app
+import src.analysis as analysis
 
 class TestToSerApp(unittest.TestCase):
     def setUp(self):
@@ -30,9 +32,23 @@ class TestToSerApp(unittest.TestCase):
         self.assertIn('error', data)
         self.assertIn('Unable to fetch the Terms of Service document', data['error'])
 
-    def test_analyze_route_valid_url(self):
-        # This test assumes that the URL will return a valid ToS document
-        # You might want to mock the external API calls for more reliable testing
+    @patch('src.analysis.fetch_tos_document')
+    @patch('src.analysis.analyze_tos')
+    def test_analyze_route_valid_url(self, mock_analyze_tos, mock_fetch_tos_document):
+        mock_fetch_tos_document.return_value = "Sample ToS document"
+        mock_analyze_tos.return_value = {
+            "categories": [
+                {
+                    "name": "Sample Category",
+                    "weight": 100,
+                    "score": 5.0,
+                    "explanation": "Sample explanation"
+                }
+            ],
+            "overall_score": 5.0,
+            "summary": "Sample summary"
+        }
+        
         response = self.app.post('/analyze', 
                                  data=json.dumps({'url': 'https://www.example.com/tos'}),
                                  content_type='application/json')
