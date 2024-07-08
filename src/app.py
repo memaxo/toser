@@ -42,7 +42,7 @@ def analyze():
             return jsonify(analysis), 400
 
         # Validate the structure of the analysis result
-        expected_keys = {"categories", "overall_score", "summary"}
+        expected_keys = {"categories", "overall_score", "summary", "company_name", "letter_grade", "red_flags", "green_flags"}
         if not all(key in analysis for key in expected_keys):
             logger.error("Analysis result is missing expected keys")
             return jsonify({'error': 'Invalid analysis result structure'}), 500

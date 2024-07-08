@@ -17,14 +17,19 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class Category(TypedDict):
     name: str
-    weight: int
+    user_friendly_aspect: str
+    concerning_aspect: str
     score: float
-    explanation: str
+    justification: str
 
 class TosAnalysis(TypedDict):
+    initial_assessment: str
     categories: List[Category]
-    overall_score: float
+    final_score: float
+    letter_grade: str
     summary: str
+    green_flags: List[str]
+    red_flags: List[str]
 
 def fetch_tos_document(url: str) -> Optional[str]:
     try:
@@ -46,6 +51,65 @@ def extract_company_name(url: str) -> str:
     company_name = domain.split('.')[0].capitalize()
     return company_name
 
+def generate_tos_analysis_prompt(company_name: str, tos_text: str) -> str:
+    return f"""Analyze the Terms of Service (ToS) for {company_name} objectively and comprehensively. Your analysis should be balanced, considering both user-friendly and potentially concerning aspects.
+
+Initial Assessment:
+1. Identify the 3 most notable aspects of this ToS, whether positive or negative. (50 words max)
+
+For each category below, provide:
+a) Most user-friendly aspect (1 sentence)
+b) Most concerning aspect (1 sentence)
+c) Score (-2 to +2)
+d) Brief justification (30 words max)
+
+Scoring Guide:
+-2: Highly concerning or user-unfriendly
+-1: Somewhat concerning or below average
+ 0: Neutral or industry standard
++1: User-friendly or above average
++2: Exceptionally user-friendly or protective of user rights
+
+Categories:
+1. Clarity and Readability: How easy is the ToS to understand for an average user?
+2. Privacy and Data Security: How well does it protect user data and privacy?
+3. Data Collection and Usage: How transparent and fair are data practices?
+4. User Rights and Control: What level of control do users have over their data and account?
+5. Liability and Disclaimers: How balanced are the liability terms between user and company?
+6. Termination and Account Suspension: How fair and clear are these processes?
+7. Changes to Terms: How are users notified and what rights do they have regarding changes?
+
+Overall Assessment:
+1. Calculate the final score: Convert category scores to 0-10 scale, then take the weighted average using category weights [15%, 25%, 20%, 15%, 10%, 5%, 5%]. Round to one decimal place.
+2. Assign a letter grade based on the final score:
+   9.0-10: A+ | 8.5-8.9: A | 8.0-8.4: A- | 7.5-7.9: B+ | 7.0-7.4: B | 6.5-6.9: B-
+   6.0-6.4: C+ | 5.5-5.9: C | 5.0-5.4: C- | 4.5-4.9: D+ | 4.0-4.4: D | 3.5-3.9: D-
+   0-3.4: F
+3. Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)
+4. List up to 3 green flags (user-friendly practices) and 3 red flags (concerning practices), if any.
+
+Provide your analysis in the following JSON format:
+{{
+  "initial_assessment": "string",
+  "categories": [
+    {{
+      "name": "string",
+      "user_friendly_aspect": "string",
+      "concerning_aspect": "string",
+      "score": number,
+      "justification": "string"
+    }}
+  ],
+  "final_score": number,
+  "letter_grade": "string",
+  "summary": "string",
+  "green_flags": ["string"],
+  "red_flags": ["string"]
+}}
+
+Terms of Service to analyze:
+{tos_text[:100000]}  # Limit input to approximately 100,000 tokens
+"""
 
 def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
     if not tos_text:
@@ -57,78 +121,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
     try:
         model = genai.GenerativeModel('gemini-1.5-pro-latest')
         
-        prompt = f"""
-        Analyze the following Terms of Service for {company_name} with a highly critical perspective. Be especially harsh on practices that violate user privacy, involve excessive data collection, or unfair data selling practices. Start from a baseline score of 5/10 for each category and adjust downwards for concerning practices. Provide a JSON output with the following structure:
-        {{
-            "categories": [
-                {{
-                    "name": "Clarity and Readability",
-                    "weight": 15,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Privacy and Data Security",
-                    "weight": 25,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Data Collection and Usage",
-                    "weight": 20,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "User Rights and Control",
-                    "weight": 15,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Liability and Disclaimers",
-                    "weight": 10,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Termination and Account Suspension",
-                    "weight": 5,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Changes to Terms",
-                    "weight": 5,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }},
-                {{
-                    "name": "Overall Fairness",
-                    "weight": 5,
-                    "score": 5,
-                    "explanation": "Detailed critical explanation here"
-                }}
-            ],
-            "overall_score": 5,
-            "summary": "Highly critical overall summary of the analysis",
-            "red_flags": ["List of significant concerns or red flags identified"]
-        }}
-
-        Guidelines for harsh criticism:
-        1. Privacy and Data Security: Severely penalize any vague language about data usage, sharing with third parties, or lack of encryption standards.
-        2. Data Collection and Usage: Harshly criticize any excessive data collection, unclear retention policies, or data selling practices.
-        3. User Rights and Control: Severely dock points for any terms that limit user control over their data or make it difficult to delete accounts.
-        4. Clarity and Readability: Be critical of any legal jargon or unnecessarily complex language.
-        5. Overall Fairness: Significantly lower scores for any terms that seem to heavily favor the company over users.
-
-        Provide detailed explanations for each category score, highlighting specific concerning clauses or practices.
-        Calculate the overall_score as a weighted average of the category scores, but ensure it does not exceed 7/10 even if individual categories score higher.
-        In the red_flags list, include any practices that are particularly alarming or user-unfriendly.
-
-        Terms of Service to analyze:
-        {tos_text[:100000]}  # Limit the input to approximately 100,000 tokens
-        """
+        prompt = generate_tos_analysis_prompt(company_name, tos_text)
 
         response = model.generate_content(
             prompt,
@@ -159,7 +152,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         try:
             analysis_json = json.loads(cleaned_response)
             
-            # Post-processing to ensure harshness
+            # Post-processing to ensure consistency
             cleaned_analysis = post_process_analysis(analysis_json)
 
             return cleaned_analysis
@@ -187,31 +180,31 @@ def clean_response_text(text: str) -> str:
     return cleaned.strip()
 
 def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
-    # Ensure overall score doesn't exceed 7
-    analysis['overall_score'] = min(analysis['overall_score'], 7.0)
+    # Ensure all required fields are present
+    required_fields = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
+    for field in required_fields:
+        if field not in analysis:
+            analysis[field] = "Not provided" if field in ['initial_assessment', 'letter_grade', 'summary'] else []
 
-    # Apply additional penalties for critical issues
-    critical_categories = ['Privacy and Data Security', 'Data Collection and Usage', 'User Rights and Control']
+    # Ensure final_score is within 0-10 range
+    analysis['final_score'] = max(0, min(10, analysis['final_score']))
+
+    # Ensure categories have all required fields
     for category in analysis['categories']:
-        if category['name'] in critical_categories and category['score'] < 3:
-            analysis['overall_score'] *= 0.9  # 10% penalty for each critical category scoring below 3
+        required_category_fields = ['name', 'user_friendly_aspect', 'concerning_aspect', 'score', 'justification']
+        for field in required_category_fields:
+            if field not in category:
+                category[field] = "Not provided" if field != 'score' else 0
 
-    # Cap the overall score if any category is extremely low
-    if any(category['score'] < 2 for category in analysis['categories']):
-        analysis['overall_score'] = min(analysis['overall_score'], 5.0)
+        # Ensure category score is within -2 to 2 range
+        category['score'] = max(-2, min(2, category['score']))
 
-    # Ensure red flags are prominently featured
-    if 'red_flags' not in analysis or not analysis['red_flags']:
-        analysis['red_flags'] = ["No specific red flags identified, but this does not guarantee the absence of concerning practices."]
-
-    # Round scores for consistency
-    analysis['overall_score'] = round(analysis['overall_score'], 1)
-    for category in analysis['categories']:
-        category['score'] = round(category['score'], 1)
+    # Ensure green_flags and red_flags are lists
+    for flag_type in ['green_flags', 'red_flags']:
+        if not isinstance(analysis[flag_type], list):
+            analysis[flag_type] = [analysis[flag_type]] if analysis[flag_type] else []
 
     return analysis
-
-
 
 def main():
     tos_url = input("Enter the URL of the Terms of Service document: ")
