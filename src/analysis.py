@@ -155,6 +155,9 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON response: {e}")
             return {"error": "Unable to parse the JSON response from Gemini API"}
+        except AttributeError as e:
+            logger.error(f"Error accessing response text: {e}")
+            return {"error": "Unable to access the response text from Gemini API"}
 
         # Post-processing to ensure consistency
         try:
@@ -165,7 +168,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
             logger.error(f"Error in post-processing: {ve}")
             return {
                 "error": f"Error in post-processing: {str(ve)}",
-                "raw_response": response.text[:1000]
+                "raw_response": str(response)[:1000]
             }
 
     except genai.types.generation_types.BlockedPromptException as e:
