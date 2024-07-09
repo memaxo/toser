@@ -36,6 +36,16 @@ class TosAnalysis(TypedDict):
     red_flags: List[str]
     company_name: str  # Add this field to match the expected structure
 
+class TosAnalysis(TypedDict):
+    initial_assessment: str
+    categories: List[Category]
+    final_score: float
+    letter_grade: str
+    summary: str
+    green_flags: List[str]
+    red_flags: List[str]
+    company_name: str  # Add this field to match the expected structure
+
 def fetch_tos_document(url: str) -> Optional[str]:
     try:
         headers = {
