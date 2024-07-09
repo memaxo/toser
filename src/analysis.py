@@ -347,6 +347,21 @@ def clean_json_response(response_text: str) -> str:
     
     response_text = re.sub(r'"(\{[^}]*\})"', replace_nested_json, response_text)
     
+    # Handle truncated JSON
+    try:
+        json.loads(response_text)
+    except json.JSONDecodeError as e:
+        # If the error is due to truncation, attempt to close the JSON structure
+        if "Expecting ',' delimiter" in str(e):
+            # Find the last complete object or array
+            last_complete = max(response_text.rfind('}'), response_text.rfind(']'))
+            if last_complete != -1:
+                response_text = response_text[:last_complete+1]
+                # Close any open brackets or braces
+                open_brackets = response_text.count('{') - response_text.count('}')
+                open_squares = response_text.count('[') - response_text.count(']')
+                response_text += '}' * open_brackets + ']' * open_squares
+    
     return response_text
 
 def main():
