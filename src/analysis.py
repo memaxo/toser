@@ -162,44 +162,53 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(analysis, dict):
         raise ValueError(f"Expected dictionary, got {type(analysis)}")
     
-    # Ensure all required fields are present
-    required_keys = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
-    for field in required_keys:
-        if field not in analysis:
-            analysis[field] = "Not provided" if field in ['initial_assessment', 'letter_grade', 'summary'] else []
-
-    # Ensure final_score is within 0-10 range and is a float
-    try:
-        final_score = analysis.get('final_score', 0)
-        if isinstance(final_score, list):
-            final_score = final_score[0] if final_score else 0
-        analysis['final_score'] = max(0, min(10, float(final_score)))
-    except (ValueError, TypeError):
-        analysis['final_score'] = 0
-
-    # Ensure categories have all required fields
-    if isinstance(analysis['categories'], list):
-        for category in analysis['categories']:
-            required_category_fields = ['name', 'user_friendly_aspect', 'concerning_aspect', 'score', 'justification']
-            for field in required_category_fields:
-                if field not in category:
-                    category[field] = "Not provided" if field != 'score' else 0
-
-            # Ensure category score is within 0 to 10 range and is a float
-            try:
-                category['score'] = max(0, min(10, float(category.get('score', 0))))
-            except ValueError:
-                category['score'] = 0
+    # Extract initial assessment
+    initial_assessment = analysis.get('Initial Assessment', {})
+    if isinstance(initial_assessment, dict):
+        analysis['initial_assessment'] = initial_assessment.get('notable_aspects', [])
     else:
-        analysis['categories'] = []
+        analysis['initial_assessment'] = []
 
-    # Ensure green_flags and red_flags are lists
-    for flag_type in ['green_flags', 'red_flags']:
-        if not isinstance(analysis[flag_type], list):
-            analysis[flag_type] = [analysis[flag_type]] if analysis[flag_type] else []
+    # Extract categories
+    categories = []
+    category_names = [
+        "Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
+        "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
+        "Changes to Terms"
+    ]
+    for name in category_names:
+        category = analysis.get(name, {})
+        if isinstance(category, dict):
+            categories.append({
+                'name': name,
+                'user_friendly_aspect': category.get('user_friendly_aspect', ''),
+                'concerning_aspect': category.get('concerning_aspect', ''),
+                'score': float(category.get('score', 0)),
+                'justification': category.get('justification', '')
+            })
+    analysis['categories'] = categories
 
-    # Ensure summary is a string
-    analysis['summary'] = str(analysis.get('summary', ''))
+    # Extract overall assessment
+    overall_assessment = analysis.get('Overall Assessment', {})
+    if isinstance(overall_assessment, dict):
+        analysis['final_score'] = float(overall_assessment.get('final_score', 0))
+        analysis['letter_grade'] = overall_assessment.get('letter_grade', '')
+        analysis['summary'] = overall_assessment.get('summary', '')
+        analysis['green_flags'] = overall_assessment.get('green_flags', [])
+        analysis['red_flags'] = overall_assessment.get('red_flags', [])
+    else:
+        analysis['final_score'] = 0
+        analysis['letter_grade'] = ''
+        analysis['summary'] = ''
+        analysis['green_flags'] = []
+        analysis['red_flags'] = []
+
+    # Ensure all required fields are present and properly formatted
+    analysis['final_score'] = max(0, min(10, float(analysis['final_score'])))
+    analysis['letter_grade'] = str(analysis['letter_grade'])
+    analysis['summary'] = str(analysis['summary'])
+    analysis['green_flags'] = list(analysis['green_flags'])
+    analysis['red_flags'] = list(analysis['red_flags'])
 
     return analysis
 
