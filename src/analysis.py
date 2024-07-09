@@ -34,6 +34,7 @@ class TosAnalysis(TypedDict):
     summary: str
     green_flags: List[str]
     red_flags: List[str]
+    company_name: str  # Add this field to match the expected structure
 
 def fetch_tos_document(url: str) -> Optional[str]:
     try:
@@ -67,27 +68,26 @@ def extract_company_name(url: str) -> str:
     return company_name
 
 def generate_tos_analysis_prompt(company_name: str, tos_text: str) -> str:
-    return f"""Analyze the Terms of Service (ToS) for {company_name} objectively and comprehensively. Your analysis should be balanced, considering both user-friendly and potentially concerning aspects. Provide your response in the following structured format:
+    return f"""Analyze the Terms of Service (ToS) for {company_name} objectively and comprehensively. Your analysis should be balanced, considering both user-friendly and potentially concerning aspects. Provide your response as a JSON object with the following structure:
 
-INITIAL_ASSESSMENT
-[Identify the 3 most notable aspects of this ToS, whether positive or negative. (50 words max)]
-
-CATEGORIES
-[For each category, provide the following information in this exact format:]
-Category: [Category Name]
-User-friendly aspect: [Most user-friendly aspect (1 sentence)]
-Concerning aspect: [Most concerning aspect (1 sentence)]
-Score: [Score from 0 to 10]
-Justification: [Brief justification (30 words max)]
-
-[Repeat for all 7 categories]
-
-OVERALL_ASSESSMENT
-Final Score: [Calculate the final score as a weighted average of category scores. Round to one decimal place.]
-Letter Grade: [Assign a letter grade based on the final score]
-Summary: [Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)]
-Green Flags: [List up to 3 user-friendly practices, one per line]
-Red Flags: [List up to 3 concerning practices, one per line]
+{{
+    "initial_assessment": "Identify the 3 most notable aspects of this ToS, whether positive or negative. (50 words max)",
+    "categories": [
+        {{
+            "name": "Category Name",
+            "user_friendly_aspect": "Most user-friendly aspect (1 sentence)",
+            "concerning_aspect": "Most concerning aspect (1 sentence)",
+            "score": 0,
+            "justification": "Brief justification (30 words max)"
+        }},
+        // Repeat for all 7 categories
+    ],
+    "final_score": 0.0,
+    "letter_grade": "Letter grade based on the final score",
+    "summary": "Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)",
+    "green_flags": ["List up to 3 user-friendly practices"],
+    "red_flags": ["List up to 3 concerning practices"]
+}}
 
 Categories to analyze:
 1. Clarity and Readability
@@ -133,51 +133,18 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 top_p=1,
                 top_k=32,
                 max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=TosAnalysis
             )
         )
         
         logger.debug(f"Raw API response: {response}")
 
-        # Extract the text content from the response
         try:
-            response_text = response.candidates[0].content.parts[0].text
-        except (AttributeError, IndexError) as e:
-            logger.error(f"Error extracting text from response: {e}")
-            logger.debug(f"Response structure: {response}")
-            return {"error": "Unexpected response format from Gemini API"}
-        
-        logger.debug(f"Response text: {response_text}")
-
-        # Implement fallback mechanisms and incremental parsing
-        analysis_result = None
-        
-        # Attempt 1: Parse structured response
-        try:
-            analysis_result = parse_structured_response(response_text)
-        except Exception as e:
-            logger.warning(f"Failed to parse structured response: {e}")
-
-        # Attempt 2: Parse as JSON
-        if not analysis_result:
-            try:
-                analysis_result = json.loads(response_text)
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse response as JSON")
-
-        # Attempt 3: Use existing parse_and_clean_json function
-        if not analysis_result:
-            try:
-                analysis_result = parse_and_clean_json(response_text)
-            except Exception as e:
-                logger.warning(f"Failed to parse and clean JSON: {e}")
-
-        # Attempt 4: Extract structured data as a last resort
-        if not analysis_result:
-            try:
-                analysis_result = extract_structured_data(response_text)
-            except Exception as e:
-                logger.error(f"All parsing attempts failed: {e}")
-                return {"error": "Unable to parse the analysis result"}
+            analysis_result = json.loads(response.text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON response: {e}")
+            return {"error": "Unable to parse the JSON response from Gemini API"}
 
         # Post-processing to ensure consistency
         try:
@@ -188,7 +155,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
             logger.error(f"Error in post-processing: {ve}")
             return {
                 "error": f"Error in post-processing: {str(ve)}",
-                "raw_response": response_text[:1000]
+                "raw_response": response.text[:1000]
             }
 
     except genai.types.generation_types.BlockedPromptException as e:
