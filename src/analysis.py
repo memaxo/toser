@@ -7,6 +7,8 @@ from typing import List, Optional, Dict, Any
 from typing_extensions import TypedDict
 import google.generativeai as genai
 import logging
+import re
+import unicodedata
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -129,18 +131,30 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
 
         # Parse the JSON response
         try:
+            # Try to parse the JSON response
             analysis_json = json.loads(response_text)
-            
-            # Post-processing to ensure consistency
-            cleaned_analysis = post_process_analysis(analysis_json)
-
-            return cleaned_analysis
-
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse API response as JSON: {e}")
             logger.error(f"Problematic text: {response_text[:500]}")
+            
+            # Attempt to clean and parse the response
+            cleaned_response = self.clean_json_response(response_text)
+            try:
+                analysis_json = json.loads(cleaned_response)
+            except json.JSONDecodeError:
+                return {
+                    "error": "Failed to parse the API response as JSON.",
+                    "raw_response": response_text[:1000]
+                }
+
+        # Post-processing to ensure consistency
+        try:
+            cleaned_analysis = post_process_analysis(analysis_json)
+            return cleaned_analysis
+        except ValueError as ve:
+            logger.error(f"Error in post-processing: {ve}")
             return {
-                "error": "Failed to parse the API response as JSON.",
+                "error": f"Error in post-processing: {str(ve)}",
                 "raw_response": response_text[:1000]
             }
 
@@ -183,6 +197,30 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
             analysis[flag_type] = [analysis[flag_type]] if analysis[flag_type] else []
 
     return analysis
+
+def clean_json_response(self, response_text: str) -> str:
+    """
+    Attempt to clean a malformed JSON response.
+    """
+    # Remove any leading or trailing whitespace
+    response_text = response_text.strip()
+    
+    # Ensure the response starts and ends with curly braces
+    if not response_text.startswith('{'):
+        response_text = '{' + response_text
+    if not response_text.endswith('}'):
+        response_text = response_text + '}'
+    
+    # Replace single quotes with double quotes
+    response_text = response_text.replace("'", '"')
+    
+    # Handle newlines within string values
+    response_text = re.sub(r'(?<!\\)\\n', r'\\n', response_text)
+    
+    # Remove any control characters
+    response_text = ''.join(ch for ch in response_text if unicodedata.category(ch)[0] != 'C')
+    
+    return response_text
 
 def main():
     tos_url = input("Enter the URL of the Terms of Service document: ")
