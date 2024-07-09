@@ -118,11 +118,11 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         logger.debug(f"Raw API response: {response}")
 
         # Extract the text content from the response
-        if hasattr(response, 'text'):
-            response_text = response.text
-        elif hasattr(response, 'parts'):
-            response_text = response.parts[0].text
-        else:
+        try:
+            response_text = response.candidates[0].content.parts[0].text
+        except (AttributeError, IndexError) as e:
+            logger.error(f"Error extracting text from response: {e}")
+            logger.debug(f"Response structure: {response}")
             raise ValueError("Unexpected response format from Gemini API")
         
         logger.debug(f"Response text: {response_text}")
