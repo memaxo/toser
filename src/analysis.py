@@ -130,22 +130,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         logger.debug(f"Response text: {response_text}")
 
         # Parse the JSON response
-        try:
-            # Try to parse the JSON response
-            analysis_json = json.loads(response_text)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse API response as JSON: {e}")
-            logger.error(f"Problematic text: {response_text[:500]}")
-            
-            # Attempt to clean and parse the response
-            cleaned_response = clean_json_response(response_text)
-            try:
-                analysis_json = json.loads(cleaned_response)
-            except json.JSONDecodeError:
-                return {
-                    "error": "Failed to parse the API response as JSON.",
-                    "raw_response": response_text[:1000]
-                }
+        analysis_json = parse_and_clean_json(response_text)
 
         # Post-processing to ensure consistency
         try:
@@ -198,9 +183,31 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
 
     return analysis
 
+def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
+    """
+    Attempt to parse JSON, and if it fails, clean and try again.
+    """
+    try:
+        # First attempt to parse the JSON as-is
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        # If parsing fails, apply cleaning steps
+        cleaned_text = clean_json_response(response_text)
+        try:
+            # Attempt to parse the cleaned JSON
+            return json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            # If it still fails, log the error and return a structured error response
+            logger.error(f"Failed to parse cleaned JSON: {e}")
+            logger.error(f"Cleaned text: {cleaned_text[:500]}")
+            return {
+                "error": "Failed to parse the API response as JSON, even after cleaning.",
+                "raw_response": response_text[:1000]
+            }
+
 def clean_json_response(response_text: str) -> str:
     """
-    Attempt to clean a malformed JSON response.
+    Apply a series of cleaning steps to the JSON response text.
     """
     # Remove any leading or trailing whitespace
     response_text = response_text.strip()
@@ -219,6 +226,9 @@ def clean_json_response(response_text: str) -> str:
     
     # Remove any control characters
     response_text = ''.join(ch for ch in response_text if unicodedata.category(ch)[0] != 'C')
+    
+    # Escape unescaped quotes within string values
+    response_text = re.sub(r'(?<!\\)"(?=(?:(?:[^"]*"){2})*[^"]*$)', r'\"', response_text)
     
     return response_text
 
