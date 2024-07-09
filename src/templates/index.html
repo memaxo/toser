@@ -10,13 +10,13 @@
         body {
             font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
-            color: #F0F0F0;
+            color: #FFFFFF;
             margin: 0;
             padding: 0;
-            background-color: #1A2A3A;
+            background-color: #1a0033;
         }
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -38,12 +38,12 @@
             border: none;
             border-radius: 4px;
             background-color: #2C3E50;
-            color: #F0F0F0;
+            color: #FFFFFF;
             font-size: 16px;
         }
         button {
             background-color: #FFD700;
-            color: #1A2A3A;
+            color: #1a0033;
             border: none;
             padding: 12px 24px;
             cursor: pointer;
@@ -61,10 +61,9 @@
         }
         #result {
             margin-top: 30px;
-            background-color: #2C3E50;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
         }
         .error {
             color: #FF6B6B;
@@ -74,13 +73,73 @@
             border-left: 4px solid #FF6B6B;
             border-radius: 4px;
             margin-bottom: 20px;
+            width: 100%;
         }
-        #overall-score {
-            font-size: 2rem;
+        #company-name {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #FFFFFF;
+            text-align: center;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        #letter-grade {
+            font-size: 4rem;
             font-weight: bold;
             color: #FFD700;
             text-align: center;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        #final-score {
+            font-size: 1.5rem;
+            color: #FFFFFF;
+            text-align: center;
             margin-bottom: 30px;
+            width: 100%;
+        }
+        #initial-assessment {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #34495E;
+            border-radius: 8px;
+            border-left: 4px solid #3498DB;
+        }
+        .flags-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+        }
+        #green-flags, #red-flags {
+            flex: 1;
+            padding: 20px;
+            background-color: #34495E;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #green-flags {
+            border-left: 4px solid #2ECC71;
+        }
+        #red-flags {
+            border-left: 4px solid #FF6B6B;
+        }
+        #green-flags h3 {
+            color: #2ECC71;
+        }
+        #red-flags h3 {
+            color: #FF6B6B;
+        }
+        .flags-list {
+            padding-left: 20px;
+        }
+        .flags-list li {
+            margin-bottom: 10px;
+        }
+        #chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
         }
         .category-card {
             background-color: #34495E;
@@ -89,6 +148,7 @@
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: transform 0.2s;
+            width: calc(50% - 10px);
         }
         .category-card:hover {
             transform: translateY(-5px);
@@ -99,10 +159,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        .weight {
-            font-size: 0.9em;
-            color: #BDC3C7;
-        }
         .score-bar {
             background-color: #2C3E50;
             border-radius: 4px;
@@ -111,7 +167,6 @@
             overflow: hidden;
         }
         .score {
-            background-color: #3498DB;
             height: 100%;
             border-radius: 4px;
             color: #FFFFFF;
@@ -122,26 +177,13 @@
             font-weight: 600;
             transition: width 0.5s ease-out;
         }
-        #summary, #red-flags {
+        #summary {
+            width: 100%;
             margin-top: 30px;
             padding: 20px;
             background-color: #34495E;
             border-radius: 8px;
-        }
-        #summary {
             border-left: 4px solid #FFD700;
-        }
-        #red-flags {
-            border-left: 4px solid #FF6B6B;
-        }
-        #red-flags h3 {
-            color: #FF6B6B;
-        }
-        #red-flags ul {
-            padding-left: 20px;
-        }
-        #red-flags li {
-            margin-bottom: 10px;
         }
         #loading {
             text-align: center;
@@ -161,10 +203,12 @@
         }
         #loading .dot:nth-child(2) { animation-delay: 0.5s; }
         #loading .dot:nth-child(3) { animation-delay: 1s; }
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             .container { padding: 10px; }
             h1 { font-size: 2.5rem; }
             button { width: 100%; }
+            .category-card { width: 100%; }
+            .flags-container { flex-direction: column; }
         }
     </style>
 </head>
@@ -221,23 +265,86 @@
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '';
 
-            // Overall Score
-            const overallScoreDiv = document.createElement('div');
-            overallScoreDiv.id = 'overall-score';
-            overallScoreDiv.innerHTML = `<h2>Overall Score: ${analysis.overall_score?.toFixed(1) || 'N/A'}/10</h2>`;
-            resultDiv.appendChild(overallScoreDiv);
+            // Company Name
+            const companyNameDiv = document.createElement('div');
+            companyNameDiv.id = 'company-name';
+            companyNameDiv.textContent = analysis.company_name || 'Company';
+            resultDiv.appendChild(companyNameDiv);
+
+            // Letter Grade
+            const letterGradeDiv = document.createElement('div');
+            letterGradeDiv.id = 'letter-grade';
+            letterGradeDiv.textContent = analysis.letter_grade || 'N/A';
+            resultDiv.appendChild(letterGradeDiv);
+
+            // Final Score
+            const finalScoreDiv = document.createElement('div');
+            finalScoreDiv.id = 'final-score';
+            finalScoreDiv.textContent = `Final Score: ${analysis.final_score?.toFixed(1) || 'N/A'}/10`;
+            resultDiv.appendChild(finalScoreDiv);
+
+            // Initial Assessment
+            const initialAssessmentDiv = document.createElement('div');
+            initialAssessmentDiv.id = 'initial-assessment';
+            initialAssessmentDiv.innerHTML = `<h3>Initial Assessment</h3><p>${analysis.initial_assessment || 'No initial assessment available.'}</p>`;
+            resultDiv.appendChild(initialAssessmentDiv);
+
+            // Flags Container
+            const flagsContainer = document.createElement('div');
+            flagsContainer.className = 'flags-container';
+
+            // Green Flags
+            const greenFlagsDiv = document.createElement('div');
+            greenFlagsDiv.id = 'green-flags';
+            greenFlagsDiv.innerHTML = '<h3>🟢 Green Flags</h3>';
+            if (analysis.green_flags && analysis.green_flags.length > 0) {
+                const greenFlagsList = document.createElement('ul');
+                greenFlagsList.className = 'flags-list';
+                analysis.green_flags.forEach(flag => {
+                    const li = document.createElement('li');
+                    li.textContent = flag;
+                    greenFlagsList.appendChild(li);
+                });
+                greenFlagsDiv.appendChild(greenFlagsList);
+            } else {
+                greenFlagsDiv.innerHTML += '<p>No green flags identified.</p>';
+            }
+            flagsContainer.appendChild(greenFlagsDiv);
+
+            // Red Flags
+            const redFlagsDiv = document.createElement('div');
+            redFlagsDiv.id = 'red-flags';
+            redFlagsDiv.innerHTML = '<h3>🔴 Red Flags</h3>';
+            if (analysis.red_flags && analysis.red_flags.length > 0) {
+                const redFlagsList = document.createElement('ul');
+                redFlagsList.className = 'flags-list';
+                analysis.red_flags.forEach(flag => {
+                    const li = document.createElement('li');
+                    li.textContent = flag;
+                    redFlagsList.appendChild(li);
+                });
+                redFlagsDiv.appendChild(redFlagsList);
+            } else {
+                redFlagsDiv.innerHTML += '<p>No red flags identified.</p>';
+            }
+            flagsContainer.appendChild(redFlagsDiv);
+
+            resultDiv.appendChild(flagsContainer);
 
             // Chart
+            const chartContainer = document.createElement('div');
+            chartContainer.id = 'chart-container';
             const chartCanvas = document.createElement('canvas');
             chartCanvas.id = 'score-chart';
-            resultDiv.appendChild(chartCanvas);
+            chartContainer.appendChild(chartCanvas);
+            resultDiv.appendChild(chartContainer);
 
             const chartData = {
                 labels: analysis.categories?.map(c => c.name) || [],
                 datasets: [{
                     label: 'Category Scores',
                     data: analysis.categories?.map(c => c.score) || [],
-                    backgroundColor: '#3498DB'
+                    backgroundColor: analysis.categories?.map(c => c.score >= 0 ? '#2ECC71' : '#FF6B6B') || []
                 }]
             };
 
@@ -249,11 +356,12 @@
                     scales: {
                         x: {
                             beginAtZero: true,
-                            max: 10,
-                            ticks: { color: '#F0F0F0' }
+                            min: -2,
+                            max: 2,
+                            ticks: { color: '#FFFFFF' }
                         },
                         y: {
-                            ticks: { color: '#F0F0F0' }
+                            ticks: { color: '#FFFFFF' }
                         }
                     },
                     plugins: {
@@ -272,12 +380,18 @@
                 analysis.categories.forEach((category) => {
                     const categoryCard = document.createElement('div');
                     categoryCard.className = 'category-card';
+                    const scorePercentage = ((category.score + 2) / 4) * 100; // Convert -2 to +2 scale to 0-100%
+                    const scoreColor = category.score >= 0 ? '#2ECC71' : '#FF6B6B';
                     categoryCard.innerHTML = `
-                        <h3>${category.name} <span class="weight">(${category.weight}%)</span></h3>
+                        <h3>${category.name}</h3>
                         <div class="score-bar">
-                            <div class="score" style="width: ${(category.score || 0) * 10}%;">${category.score?.toFixed(1) || 'N/A'}/10</div>
+                            <div class="score" style="width: ${scorePercentage}%; background-color: ${scoreColor};">
+                                ${category.score.toFixed(1)}
+                            </div>
                         </div>
-                        <p>${category.explanation || 'No explanation provided.'}</p>
+                        <p><strong>User-friendly aspect:</strong> ${category.user_friendly_aspect}</p>
+                        <p><strong>Concerning aspect:</strong> ${category.concerning_aspect}</p>
+                        <p><strong>Justification:</strong> ${category.justification}</p>
                     `;
                     breakdownDiv.appendChild(categoryCard);
                 });
@@ -286,16 +400,6 @@
             }
 
             resultDiv.appendChild(breakdownDiv);
-
-            // Red Flags
-            if (analysis.red_flags && analysis.red_flags.length > 0) {
-                const redFlagsDiv = document.createElement('div');
-                redFlagsDiv.id = 'red-flags';
-                redFlagsDiv.innerHTML = '<h3>⚠️ Red Flags</h3><ul>' + 
-                    analysis.red_flags.map(flag => `<li>${flag}</li>`).join('') + 
-                    '</ul>';
-                resultDiv.appendChild(redFlagsDiv);
-            }
 
             // Summary
             const summaryDiv = document.createElement('div');

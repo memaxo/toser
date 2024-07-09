@@ -88,25 +88,6 @@ Overall Assessment:
 3. Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)
 4. List up to 3 green flags (user-friendly practices) and 3 red flags (concerning practices), if any.
 
-Provide your analysis in the following JSON format:
-{{
-  "initial_assessment": "string",
-  "categories": [
-    {{
-      "name": "string",
-      "user_friendly_aspect": "string",
-      "concerning_aspect": "string",
-      "score": number,
-      "justification": "string"
-    }}
-  ],
-  "final_score": number,
-  "letter_grade": "string",
-  "summary": "string",
-  "green_flags": ["string"],
-  "red_flags": ["string"]
-}}
-
 Terms of Service to analyze:
 {tos_text[:100000]}  # Limit input to approximately 100,000 tokens
 """
@@ -125,27 +106,30 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
 
         response = model.generate_content(
             prompt,
-            generation_config={
-                "temperature": 0.2,
-                "top_p": 1,
-                "top_k": 32,
-                "max_output_tokens": 2048,
-            }
+            generation_config=genai.GenerationConfig(
+                temperature=0.2,
+                top_p=1,
+                top_k=32,
+                max_output_tokens=2048,
+                response_mime_type="application/json"
+            )
         )
         
-        logger.debug(f"Raw API response (first 1000 characters): {str(response)[:1000]}")
+        logger.debug(f"Raw API response: {response}")
 
         # Extract the text content from the response
-        response_text = response.text
-
-        # Clean the response text by removing markdown code block syntax
-        cleaned_response = clean_response_text(response_text)
+        if hasattr(response, 'text'):
+            response_text = response.text
+        elif hasattr(response, 'parts'):
+            response_text = response.parts[0].text
+        else:
+            raise ValueError("Unexpected response format from Gemini API")
         
-        logger.debug(f"Cleaned response text: {cleaned_response[:1000]}")  # Log first 1000 characters
+        logger.debug(f"Response text: {response_text}")
 
         # Parse the JSON response
         try:
-            analysis_json = json.loads(cleaned_response)
+            analysis_json = json.loads(response_text)
             
             # Post-processing to ensure consistency
             cleaned_analysis = post_process_analysis(analysis_json)
@@ -154,31 +138,21 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse API response as JSON: {e}")
-            logger.error(f"Problematic text: {cleaned_response[:500]}")
+            logger.error(f"Problematic text: {response_text[:500]}")
             return {
                 "error": "Failed to parse the API response as JSON.",
-                "raw_response": cleaned_response[:1000]
+                "raw_response": response_text[:1000]
             }
-
-    except ValueError as ve:
-        logger.error(f"ValueError in analysis: {str(ve)}")
-        return {"error": str(ve)}
 
     except Exception as e:
         logger.exception("An error occurred while analyzing the Terms of Service")
         return {"error": f"An error occurred while analyzing the Terms of Service: {str(e)}"}
 
-def clean_response_text(text: str) -> str:
-    """Remove markdown code block syntax and trim whitespace."""
-    # Remove ```json from the start and ``` from the end if present
-    cleaned = text.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    return cleaned.strip()
-
 def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
+    # Check if the analysis is a dictionary
+    if not isinstance(analysis, dict):
+        raise ValueError(f"Expected dictionary, got {type(analysis)}")
+    
     # Check for completeness of the response
     required_keys = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
     missing_keys = [key for key in required_keys if key not in analysis]
@@ -201,7 +175,7 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
                 category[field] = "Not provided" if field != 'score' else 0
 
         # Ensure category score is within -2 to 2 range
-        category['score'] = max(-2, min(2, category['score']))
+        category['score'] = max(-2, min(2, float(category['score'])))
 
     # Ensure green_flags and red_flags are lists
     for flag_type in ['green_flags', 'red_flags']:
