@@ -298,7 +298,7 @@
             // Final Score
             const finalScoreDiv = document.createElement('div');
             finalScoreDiv.id = 'final-score';
-            finalScoreDiv.textContent = `Final Score: ${analysis.final_score.toFixed(1)}/10`;
+            finalScoreDiv.textContent = `Final Score: ${parseFloat(analysis.final_score).toFixed(1)}/10`;
             resultDiv.appendChild(finalScoreDiv);
 
             // Initial Assessment
@@ -361,8 +361,8 @@
                 labels: analysis.categories.map(c => c.name),
                 datasets: [{
                     label: 'Category Scores',
-                    data: analysis.categories.map(c => c.score),
-                    backgroundColor: analysis.categories.map(c => c.score >= 5 ? '#2ECC71' : '#FF6B6B')
+                    data: analysis.categories.map(c => parseFloat(c.score)),
+                    backgroundColor: analysis.categories.map(c => parseFloat(c.score) >= 5 ? '#2ECC71' : '#FF6B6B')
                 }]
             };
 
@@ -398,13 +398,13 @@
                 analysis.categories.forEach((category) => {
                     const categoryCard = document.createElement('div');
                     categoryCard.className = 'category-card';
-                    const scorePercentage = (category.score / 10) * 100; // Convert 0-10 scale to 0-100%
-                    const scoreColor = category.score >= 5 ? '#2ECC71' : '#FF6B6B';
+                    const scorePercentage = (parseFloat(category.score) / 10) * 100; // Convert 0-10 scale to 0-100%
+                    const scoreColor = parseFloat(category.score) >= 5 ? '#2ECC71' : '#FF6B6B';
                     categoryCard.innerHTML = `
                         <h3>${category.name}</h3>
                         <div class="score-bar">
                             <div class="score" style="width: ${scorePercentage}%; background-color: ${scoreColor};">
-                                ${category.score.toFixed(1)}
+                                ${parseFloat(category.score).toFixed(1)}
                             </div>
                         </div>
                         <p><strong>User-friendly aspect:</strong> ${category.user_friendly_aspect}</p>

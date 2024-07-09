@@ -56,7 +56,15 @@ def analyze():
         # Ensure final_score is a float
         analysis['final_score'] = float(analysis['final_score'])
 
+        # Ensure green_flags and red_flags are lists
+        analysis['green_flags'] = analysis.get('green_flags', [])
+        analysis['red_flags'] = analysis.get('red_flags', [])
+
+        # Ensure summary is a string
+        analysis['summary'] = str(analysis.get('summary', 'No summary available.'))
+
         logger.info("Analysis completed successfully")
+        logger.debug(f"Sending analysis to frontend: {analysis}")
         return jsonify(analysis)
 
     except ValueError as ve:

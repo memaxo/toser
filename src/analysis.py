@@ -164,8 +164,8 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
         if field not in analysis:
             analysis[field] = "Not provided" if field in ['initial_assessment', 'letter_grade', 'summary'] else []
 
-    # Ensure final_score is within 0-10 range
-    analysis['final_score'] = max(0, min(10, float(analysis['final_score'])))
+    # Ensure final_score is within 0-10 range and is a float
+    analysis['final_score'] = max(0, min(10, float(analysis.get('final_score', 0))))
 
     # Ensure categories have all required fields
     for category in analysis['categories']:
@@ -174,13 +174,17 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
             if field not in category:
                 category[field] = "Not provided" if field != 'score' else 0
 
-        # Ensure category score is within 0 to 10 range
-        category['score'] = max(0, min(10, float(category['score'])))
+        # Ensure category score is within 0 to 10 range and is a float
+        category['score'] = max(0, min(10, float(category.get('score', 0))))
 
     # Ensure green_flags and red_flags are lists
     for flag_type in ['green_flags', 'red_flags']:
         if not isinstance(analysis[flag_type], list):
             analysis[flag_type] = [analysis[flag_type]] if analysis[flag_type] else []
+
+    # Ensure summary is a string
+    if not isinstance(analysis['summary'], str):
+        analysis['summary'] = str(analysis['summary'])
 
     return analysis
 
