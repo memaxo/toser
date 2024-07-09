@@ -127,8 +127,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 top_k=32,
                 max_output_tokens=2048,
                 response_mime_type="application/json"
-            ),
-            timeout=60  # Set a 60-second timeout for the API call
+            )
         )
         
         logger.debug(f"Raw API response: {response}")
