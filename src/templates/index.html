@@ -291,8 +291,8 @@
             // Letter Grade
             const letterGradeDiv = document.createElement('div');
             letterGradeDiv.id = 'letter-grade';
-            letterGradeDiv.textContent = analysis.letter_grade || 'N/A';
-            letterGradeDiv.style.color = getGradeColor(analysis.letter_grade);
+            letterGradeDiv.textContent = analysis.letter_grade || 'F';
+            letterGradeDiv.style.color = getGradeColor(analysis.letter_grade || 'F');
             resultDiv.appendChild(letterGradeDiv);
 
             // Final Score
