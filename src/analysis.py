@@ -138,6 +138,9 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         # Parse the JSON response
         analysis_json = parse_and_clean_json(response_text)
 
+        if "error" in analysis_json:
+            return analysis_json
+
         # Post-processing to ensure consistency
         try:
             cleaned_analysis = post_process_analysis(analysis_json)
@@ -216,6 +219,12 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     """
     Attempt to parse JSON, clean, and restructure it to match expected format.
     """
+    def safe_float(value, default=0.0):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     try:
         # First attempt to parse the JSON as-is
         parsed_json = json.loads(response_text)
@@ -238,7 +247,7 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
 
     # Restructure the parsed JSON to match expected format
     restructured_json = {
-        "initial_assessment": parsed_json.get("Initial Assessment", ""),
+        "initial_assessment": str(parsed_json.get("Initial Assessment", "")),
         "categories": [],
         "final_score": 0,
         "letter_grade": "",
@@ -250,27 +259,41 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     # Extract Overall Assessment data
     overall_assessment = parsed_json.get("Overall Assessment", {})
     if isinstance(overall_assessment, dict):
-        restructured_json["final_score"] = float(overall_assessment.get("Final Score", 0))
-        restructured_json["letter_grade"] = overall_assessment.get("Letter Grade", "")
-        restructured_json["summary"] = overall_assessment.get("Summary", "")
-        restructured_json["green_flags"] = overall_assessment.get("Green Flags", [])
-        restructured_json["red_flags"] = overall_assessment.get("Red Flags", [])
+        restructured_json["final_score"] = safe_float(overall_assessment.get("Final Score", 0))
+        restructured_json["letter_grade"] = str(overall_assessment.get("Letter Grade", ""))
+        restructured_json["summary"] = str(overall_assessment.get("Summary", ""))
+        restructured_json["green_flags"] = list(overall_assessment.get("Green Flags", []))
+        restructured_json["red_flags"] = list(overall_assessment.get("Red Flags", []))
 
     # Convert category data into list format
     category_names = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
                       "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
                       "Changes to Terms"]
     
-    for name in category_names:
-        if name in parsed_json:
-            category = parsed_json[name]
-            restructured_json["categories"].append({
-                "name": name,
-                "user_friendly_aspect": category.get("a", ""),
-                "concerning_aspect": category.get("b", ""),
-                "score": float(category.get("c", 0)),
-                "justification": category.get("d", "")
-            })
+    categories = parsed_json.get("Categories", [])
+    if isinstance(categories, list):
+        for category in categories:
+            for name in category_names:
+                if name in category:
+                    cat_data = category[name]
+                    restructured_json["categories"].append({
+                        "name": name,
+                        "user_friendly_aspect": str(cat_data.get("a", "")),
+                        "concerning_aspect": str(cat_data.get("b", "")),
+                        "score": safe_float(cat_data.get("c", 0)),
+                        "justification": str(cat_data.get("d", ""))
+                    })
+    elif isinstance(categories, dict):
+        for name in category_names:
+            if name in categories:
+                cat_data = categories[name]
+                restructured_json["categories"].append({
+                    "name": name,
+                    "user_friendly_aspect": str(cat_data.get("a", "")),
+                    "concerning_aspect": str(cat_data.get("b", "")),
+                    "score": safe_float(cat_data.get("c", 0)),
+                    "justification": str(cat_data.get("d", ""))
+                })
 
     return restructured_json
 
@@ -310,6 +333,12 @@ def clean_json_response(response_text: str) -> str:
     
     # Remove any trailing commas in objects or arrays
     response_text = re.sub(r',\s*([\]}])', r'\1', response_text)
+    
+    # Remove any backslashes before forward slashes
+    response_text = response_text.replace('\/', '/')
+    
+    # Handle potential nested JSON strings
+    response_text = re.sub(r'"\s*({[^}]*})\s*"', lambda m: json.dumps(json.loads(m.group(1))), response_text)
     
     return response_text
 
