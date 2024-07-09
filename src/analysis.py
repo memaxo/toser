@@ -138,7 +138,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
             logger.error(f"Problematic text: {response_text[:500]}")
             
             # Attempt to clean and parse the response
-            cleaned_response = self.clean_json_response(response_text)
+            cleaned_response = clean_json_response(response_text)
             try:
                 analysis_json = json.loads(cleaned_response)
             except json.JSONDecodeError:
@@ -198,7 +198,7 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
 
     return analysis
 
-def clean_json_response(self, response_text: str) -> str:
+def clean_json_response(response_text: str) -> str:
     """
     Attempt to clean a malformed JSON response.
     """
