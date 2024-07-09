@@ -153,29 +153,33 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(analysis, dict):
         raise ValueError(f"Expected dictionary, got {type(analysis)}")
     
-    # Check for completeness of the response
-    required_keys = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
-    missing_keys = [key for key in required_keys if key not in analysis]
-    if missing_keys:
-        raise ValueError(f"Analysis is missing required keys: {', '.join(missing_keys)}")
-
     # Ensure all required fields are present
+    required_keys = ['initial_assessment', 'categories', 'final_score', 'letter_grade', 'summary', 'green_flags', 'red_flags']
     for field in required_keys:
         if field not in analysis:
             analysis[field] = "Not provided" if field in ['initial_assessment', 'letter_grade', 'summary'] else []
 
     # Ensure final_score is within 0-10 range and is a float
-    analysis['final_score'] = max(0, min(10, float(analysis.get('final_score', 0))))
+    try:
+        analysis['final_score'] = max(0, min(10, float(analysis.get('final_score', 0))))
+    except ValueError:
+        analysis['final_score'] = 0
 
     # Ensure categories have all required fields
-    for category in analysis['categories']:
-        required_category_fields = ['name', 'user_friendly_aspect', 'concerning_aspect', 'score', 'justification']
-        for field in required_category_fields:
-            if field not in category:
-                category[field] = "Not provided" if field != 'score' else 0
+    if isinstance(analysis['categories'], list):
+        for category in analysis['categories']:
+            required_category_fields = ['name', 'user_friendly_aspect', 'concerning_aspect', 'score', 'justification']
+            for field in required_category_fields:
+                if field not in category:
+                    category[field] = "Not provided" if field != 'score' else 0
 
-        # Ensure category score is within 0 to 10 range and is a float
-        category['score'] = max(0, min(10, float(category.get('score', 0))))
+            # Ensure category score is within 0 to 10 range and is a float
+            try:
+                category['score'] = max(0, min(10, float(category.get('score', 0))))
+            except ValueError:
+                category['score'] = 0
+    else:
+        analysis['categories'] = []
 
     # Ensure green_flags and red_flags are lists
     for flag_type in ['green_flags', 'red_flags']:
@@ -183,8 +187,7 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
             analysis[flag_type] = [analysis[flag_type]] if analysis[flag_type] else []
 
     # Ensure summary is a string
-    if not isinstance(analysis['summary'], str):
-        analysis['summary'] = str(analysis['summary'])
+    analysis['summary'] = str(analysis.get('summary', ''))
 
     return analysis
 
@@ -214,12 +217,21 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     restructured_json = {
         "initial_assessment": parsed_json.get("Initial Assessment", ""),
         "categories": [],
-        "final_score": parsed_json.get("Overall Assessment", {}).get("Final Score", 0),
-        "letter_grade": parsed_json.get("Overall Assessment", {}).get("Grade", ""),
-        "summary": parsed_json.get("Overall Assessment", {}).get("Summary", ""),
-        "green_flags": parsed_json.get("Overall Assessment", {}).get("Green Flags", []),
-        "red_flags": parsed_json.get("Overall Assessment", {}).get("Red Flags", [])
+        "final_score": 0,
+        "letter_grade": "",
+        "summary": "",
+        "green_flags": [],
+        "red_flags": []
     }
+
+    # Extract Overall Assessment data
+    overall_assessment = parsed_json.get("Overall Assessment", {})
+    if isinstance(overall_assessment, dict):
+        restructured_json["final_score"] = float(overall_assessment.get("Final Score", 0))
+        restructured_json["letter_grade"] = overall_assessment.get("Letter Grade", "")
+        restructured_json["summary"] = overall_assessment.get("Summary", "")
+        restructured_json["green_flags"] = overall_assessment.get("Green Flags", [])
+        restructured_json["red_flags"] = overall_assessment.get("Red Flags", [])
 
     # Convert category data into list format
     category_names = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
