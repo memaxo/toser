@@ -13,7 +13,7 @@
             color: #FFFFFF;
             margin: 0;
             padding: 0;
-            background-color: #1a0033;
+            background-color: #4B0082; /* Purple background */
         }
         .container {
             max-width: 1200px;
@@ -23,13 +23,13 @@
         h1 {
             font-family: 'Montserrat', sans-serif;
             font-size: 3.5rem;
-            color: #FFD700;
+            color: #FFFFFF; /* White text */
             text-align: center;
             margin-bottom: 20px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         h2, h3 {
-            color: #FFD700;
+            color: #FFFFFF; /* White text */
         }
         input[type="url"] {
             width: 100%;
@@ -37,13 +37,13 @@
             margin: 10px 0;
             border: none;
             border-radius: 4px;
-            background-color: #2C3E50;
-            color: #FFFFFF;
+            background-color: #FFFFFF; /* White background */
+            color: #4B0082; /* Purple text */
             font-size: 16px;
         }
         button {
-            background-color: #FFD700;
-            color: #1a0033;
+            background-color: #ADD8E6; /* Light blue */
+            color: #4B0082; /* Purple text */
             border: none;
             padding: 12px 24px;
             cursor: pointer;
@@ -53,7 +53,7 @@
             font-weight: 600;
         }
         button:hover {
-            background-color: #FFC000;
+            background-color: #87CEEB; /* Slightly darker light blue */
             transform: translateY(-2px);
         }
         button:active {
@@ -66,11 +66,11 @@
             gap: 20px;
         }
         .error {
-            color: #FF6B6B;
+            color: #FF0000; /* Red text */
             font-weight: bold;
             padding: 15px;
-            background-color: rgba(255,107,107,0.1);
-            border-left: 4px solid #FF6B6B;
+            background-color: rgba(255,0,0,0.1);
+            border-left: 4px solid #FF0000;
             border-radius: 4px;
             margin-bottom: 20px;
             width: 100%;
@@ -78,7 +78,7 @@
         #company-name {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #FFFFFF;
+            color: #FFFFFF; /* White text */
             text-align: center;
             margin-bottom: 10px;
             width: 100%;
@@ -86,14 +86,14 @@
         #letter-grade {
             font-size: 4rem;
             font-weight: bold;
-            color: #FFD700;
+            color: #FFFFFF; /* White text */
             text-align: center;
             margin-bottom: 10px;
             width: 100%;
         }
         #final-score {
             font-size: 1.5rem;
-            color: #FFFFFF;
+            color: #FFFFFF; /* White text */
             text-align: center;
             margin-bottom: 30px;
             width: 100%;
@@ -102,9 +102,9 @@
             width: 100%;
             margin-bottom: 20px;
             padding: 20px;
-            background-color: #34495E;
+            background-color: #6A0DAD; /* Darker purple */
             border-radius: 8px;
-            border-left: 4px solid #3498DB;
+            border-left: 4px solid #ADD8E6; /* Light blue */
         }
         .flags-container {
             display: flex;
@@ -114,21 +114,21 @@
         #green-flags, #red-flags {
             flex: 1;
             padding: 20px;
-            background-color: #34495E;
+            background-color: #6A0DAD; /* Darker purple */
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #green-flags {
-            border-left: 4px solid #2ECC71;
+            border-left: 4px solid #00FF00; /* Green */
         }
         #red-flags {
-            border-left: 4px solid #FF6B6B;
+            border-left: 4px solid #FF0000; /* Red */
         }
         #green-flags h3 {
-            color: #2ECC71;
+            color: #00FF00; /* Green */
         }
         #red-flags h3 {
-            color: #FF6B6B;
+            color: #FF0000; /* Red */
         }
         .flags-list {
             padding-left: 20px;
@@ -142,7 +142,7 @@
             margin: 0 auto;
         }
         .category-card {
-            background-color: #34495E;
+            background-color: #6A0DAD; /* Darker purple */
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -160,7 +160,7 @@
             align-items: center;
         }
         .score-bar {
-            background-color: #2C3E50;
+            background-color: #4B0082; /* Purple */
             border-radius: 4px;
             height: 24px;
             margin-bottom: 15px;
@@ -169,7 +169,7 @@
         .score {
             height: 100%;
             border-radius: 4px;
-            color: #FFFFFF;
+            color: #FFFFFF; /* White text */
             text-align: right;
             padding-right: 10px;
             line-height: 24px;
@@ -181,16 +181,16 @@
             width: 100%;
             margin-top: 30px;
             padding: 20px;
-            background-color: #34495E;
+            background-color: #6A0DAD; /* Darker purple */
             border-radius: 8px;
-            border-left: 4px solid #FFD700;
+            border-left: 4px solid #ADD8E6; /* Light blue */
         }
         #loading {
             text-align: center;
             display: none;
             font-size: 1.2em;
             margin-top: 20px;
-            color: #FFD700;
+            color: #ADD8E6; /* Light blue */
         }
         @keyframes pulse {
             0% { opacity: 0.6; }
@@ -227,10 +227,10 @@
     <script>
         function getGradeColor(grade) {
             const gradeColors = {
-                'A+': '#00FF00', 'A': '#32CD32', 'A-': '#4CAF50',
-                'B+': '#8BC34A', 'B': '#CDDC39', 'B-': '#FFEB3B',
-                'C+': '#FFC107', 'C': '#FF9800', 'C-': '#FF5722',
-                'D+': '#F44336', 'D': '#E91E63', 'D-': '#9C27B0',
+                'A+': '#00FF00', 'A': '#00FF00', 'A-': '#00FF00',
+                'B+': '#00FF00', 'B': '#00FF00', 'B-': '#00FF00',
+                'C+': '#FFFFFF', 'C': '#FFFFFF', 'C-': '#FFFFFF',
+                'D+': '#FF0000', 'D': '#FF0000', 'D-': '#FF0000',
                 'F': '#FF0000'
             };
             return gradeColors[grade] || '#FFFFFF';
