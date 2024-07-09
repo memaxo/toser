@@ -151,13 +151,16 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         logger.debug(f"Raw API response: {response}")
 
         try:
-            analysis_result = json.loads(response.text)
+            # Extract the text content from the response
+            response_text = response.text
+            # Parse the JSON content
+            analysis_result = json.loads(response_text)
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON response: {e}")
             return {"error": "Unable to parse the JSON response from Gemini API"}
         except AttributeError as e:
-            logger.error(f"Error accessing response text: {e}")
-            return {"error": "Unable to access the response text from Gemini API"}
+            logger.error(f"Error accessing response content: {e}")
+            return {"error": "Unable to access the response content from Gemini API"}
 
         # Post-processing to ensure consistency
         try:
