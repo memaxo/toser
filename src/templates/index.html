@@ -141,6 +141,11 @@
             max-width: 800px;
             margin: 0 auto;
         }
+        #category-breakdown {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
         .category-card {
             background-color: #6A0DAD; /* Darker purple */
             border-radius: 8px;
@@ -149,6 +154,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: transform 0.2s;
             width: calc(50% - 10px);
+            flex-basis: calc(50% - 10px);
         }
         .category-card:hover {
             transform: translateY(-5px);
