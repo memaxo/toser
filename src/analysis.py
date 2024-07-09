@@ -310,6 +310,9 @@ def clean_json_response(response_text: str) -> str:
     if not response_text.endswith('}'):
         response_text = response_text + '}'
     
+    # Handle escaped quotes within string values
+    response_text = re.sub(r'(?<!\\)\\(?!\\)"', '\\"', response_text)
+    
     # Replace single quotes with double quotes, but not within words (like apostrophes)
     response_text = re.sub(r"(?<!\w)'(?!\w)", '"', response_text)
     
@@ -319,26 +322,20 @@ def clean_json_response(response_text: str) -> str:
     # Remove any control characters
     response_text = ''.join(ch for ch in response_text if unicodedata.category(ch)[0] != 'C')
     
-    # Escape unescaped quotes within string values
-    response_text = re.sub(r'(?<!\\)"(?=(?:(?:[^"]*"){2})*[^"]*$)', r'\"', response_text)
-    
-    # Handle escaped apostrophes
-    response_text = response_text.replace("\\'", "'")
-    
-    # Replace double backslashes with single backslashes
-    response_text = response_text.replace("\\\\", "\\")
-    
     # Ensure all keys are properly quoted
     response_text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', response_text)
     
     # Remove any trailing commas in objects or arrays
     response_text = re.sub(r',\s*([\]}])', r'\1', response_text)
     
-    # Remove any backslashes before forward slashes
-    response_text = response_text.replace('\/', '/')
-    
     # Handle potential nested JSON strings
-    response_text = re.sub(r'"\s*({[^}]*})\s*"', lambda m: json.dumps(json.loads(m.group(1))), response_text)
+    def replace_nested_json(match):
+        try:
+            return json.dumps(json.loads(match.group(1)))
+        except json.JSONDecodeError:
+            return match.group(0)
+    
+    response_text = re.sub(r'"(\{[^}]*\})"', replace_nested_json, response_text)
     
     return response_text
 
