@@ -67,16 +67,36 @@ def extract_company_name(url: str) -> str:
     return company_name
 
 def generate_tos_analysis_prompt(company_name: str, tos_text: str) -> str:
-    return f"""Analyze the Terms of Service (ToS) for {company_name} objectively and comprehensively. Your analysis should be balanced, considering both user-friendly and potentially concerning aspects.
+    return f"""Analyze the Terms of Service (ToS) for {company_name} objectively and comprehensively. Your analysis should be balanced, considering both user-friendly and potentially concerning aspects. Provide your response in the following structured format:
 
-Initial Assessment:
-1. Identify the 3 most notable aspects of this ToS, whether positive or negative. (50 words max)
+INITIAL_ASSESSMENT
+[Identify the 3 most notable aspects of this ToS, whether positive or negative. (50 words max)]
 
-For each category below, provide:
-a) Most user-friendly aspect (1 sentence)
-b) Most concerning aspect (1 sentence)
-c) Score (-2 to +2)
-d) Brief justification (30 words max)
+CATEGORIES
+[For each category, provide the following information in this exact format:]
+Category: [Category Name]
+User-friendly aspect: [Most user-friendly aspect (1 sentence)]
+Concerning aspect: [Most concerning aspect (1 sentence)]
+Score: [Score from 0 to 10]
+Justification: [Brief justification (30 words max)]
+
+[Repeat for all 7 categories]
+
+OVERALL_ASSESSMENT
+Final Score: [Calculate the final score as a weighted average of category scores. Round to one decimal place.]
+Letter Grade: [Assign a letter grade based on the final score]
+Summary: [Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)]
+Green Flags: [List up to 3 user-friendly practices, one per line]
+Red Flags: [List up to 3 concerning practices, one per line]
+
+Categories to analyze:
+1. Clarity and Readability
+2. Privacy and Data Security
+3. Data Collection and Usage
+4. User Rights and Control
+5. Liability and Disclaimers
+6. Termination and Account Suspension
+7. Changes to Terms
 
 Scoring Guide:
 0-2: Highly concerning or user-unfriendly
@@ -85,23 +105,10 @@ Scoring Guide:
 6-7: User-friendly or above average
 8-10: Exceptionally user-friendly or protective of user rights
 
-Categories:
-1. Clarity and Readability: How easy is the ToS to understand for an average user?
-2. Privacy and Data Security: How well does it protect user data and privacy?
-3. Data Collection and Usage: How transparent and fair are data practices?
-4. User Rights and Control: What level of control do users have over their data and account?
-5. Liability and Disclaimers: How balanced are the liability terms between user and company?
-6. Termination and Account Suspension: How fair and clear are these processes?
-7. Changes to Terms: How are users notified and what rights do they have regarding changes?
-
-Overall Assessment:
-1. Calculate the final score: Convert category scores to 0-10 scale, then take the weighted average using category weights [15%, 25%, 20%, 15%, 10%, 5%, 5%]. Round to one decimal place.
-2. Assign a letter grade based on the final score:
-   9.0-10: A+ | 8.5-8.9: A | 8.0-8.4: A- | 7.5-7.9: B+ | 7.0-7.4: B | 6.5-6.9: B-
-   6.0-6.4: C+ | 5.5-5.9: C | 5.0-5.4: C- | 4.5-4.9: D+ | 4.0-4.4: D | 3.5-3.9: D-
-   0-3.4: F
-3. Summarize the ToS, highlighting the most significant positive and negative aspects. (50 words max)
-4. List up to 3 green flags (user-friendly practices) and 3 red flags (concerning practices), if any.
+Letter Grade Guide:
+9.0-10: A+ | 8.5-8.9: A | 8.0-8.4: A- | 7.5-7.9: B+ | 7.0-7.4: B | 6.5-6.9: B-
+6.0-6.4: C+ | 5.5-5.9: C | 5.0-5.4: C- | 4.5-4.9: D+ | 4.0-4.4: D | 3.5-3.9: D-
+0-3.4: F
 
 Terms of Service to analyze:
 {tos_text[:100000]}  # Limit input to approximately 100,000 tokens
@@ -126,7 +133,6 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 top_p=1,
                 top_k=32,
                 max_output_tokens=2048,
-                response_mime_type="application/json"
             )
         )
         
@@ -142,15 +148,40 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         
         logger.debug(f"Response text: {response_text}")
 
-        # Parse the JSON response
-        analysis_json = parse_and_clean_json(response_text)
+        # Implement fallback mechanisms and incremental parsing
+        analysis_result = None
+        
+        # Attempt 1: Parse structured response
+        try:
+            analysis_result = parse_structured_response(response_text)
+        except Exception as e:
+            logger.warning(f"Failed to parse structured response: {e}")
 
-        if "error" in analysis_json:
-            return analysis_json
+        # Attempt 2: Parse as JSON
+        if not analysis_result:
+            try:
+                analysis_result = json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse response as JSON")
+
+        # Attempt 3: Use existing parse_and_clean_json function
+        if not analysis_result:
+            try:
+                analysis_result = parse_and_clean_json(response_text)
+            except Exception as e:
+                logger.warning(f"Failed to parse and clean JSON: {e}")
+
+        # Attempt 4: Extract structured data as a last resort
+        if not analysis_result:
+            try:
+                analysis_result = extract_structured_data(response_text)
+            except Exception as e:
+                logger.error(f"All parsing attempts failed: {e}")
+                return {"error": "Unable to parse the analysis result"}
 
         # Post-processing to ensure consistency
         try:
-            cleaned_analysis = post_process_analysis(analysis_json)
+            cleaned_analysis = post_process_analysis(analysis_result)
             cleaned_analysis['company_name'] = company_name  # Add company name to the analysis result
             return cleaned_analysis
         except ValueError as ve:
@@ -224,6 +255,48 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
     analysis['red_flags'] = list(analysis['red_flags'])
 
     return analysis
+
+def parse_structured_response(response_text: str) -> Dict[str, Any]:
+    sections = response_text.split('\n\n')
+    parsed_data = {}
+
+    for section in sections:
+        if section.startswith('INITIAL_ASSESSMENT'):
+            parsed_data['initial_assessment'] = section.replace('INITIAL_ASSESSMENT\n', '').strip()
+        elif section.startswith('CATEGORIES'):
+            categories = []
+            current_category = {}
+            for line in section.split('\n')[1:]:
+                if line.startswith('Category:'):
+                    if current_category:
+                        categories.append(current_category)
+                        current_category = {}
+                    current_category['name'] = line.split(': ', 1)[1]
+                elif line.startswith('User-friendly aspect:'):
+                    current_category['user_friendly_aspect'] = line.split(': ', 1)[1]
+                elif line.startswith('Concerning aspect:'):
+                    current_category['concerning_aspect'] = line.split(': ', 1)[1]
+                elif line.startswith('Score:'):
+                    current_category['score'] = float(line.split(': ', 1)[1])
+                elif line.startswith('Justification:'):
+                    current_category['justification'] = line.split(': ', 1)[1]
+            if current_category:
+                categories.append(current_category)
+            parsed_data['categories'] = categories
+        elif section.startswith('OVERALL_ASSESSMENT'):
+            for line in section.split('\n')[1:]:
+                if line.startswith('Final Score:'):
+                    parsed_data['final_score'] = float(line.split(': ', 1)[1])
+                elif line.startswith('Letter Grade:'):
+                    parsed_data['letter_grade'] = line.split(': ', 1)[1]
+                elif line.startswith('Summary:'):
+                    parsed_data['summary'] = line.split(': ', 1)[1]
+                elif line.startswith('Green Flags:'):
+                    parsed_data['green_flags'] = [flag.strip() for flag in line.split(':', 1)[1].split(',')]
+                elif line.startswith('Red Flags:'):
+                    parsed_data['red_flags'] = [flag.strip() for flag in line.split(':', 1)[1].split(',')]
+
+    return parsed_data
 
 def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     """
