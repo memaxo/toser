@@ -225,6 +225,17 @@
     </div>
 
     <script>
+        function getGradeColor(grade) {
+            const gradeColors = {
+                'A+': '#00FF00', 'A': '#32CD32', 'A-': '#4CAF50',
+                'B+': '#8BC34A', 'B': '#CDDC39', 'B-': '#FFEB3B',
+                'C+': '#FFC107', 'C': '#FF9800', 'C-': '#FF5722',
+                'D+': '#F44336', 'D': '#E91E63', 'D-': '#9C27B0',
+                'F': '#FF0000'
+            };
+            return gradeColors[grade] || '#FFFFFF';
+        }
+
         async function analyzeToS() {
             const url = document.getElementById('tos-url').value;
             if (!url) {
@@ -275,6 +286,7 @@
             const letterGradeDiv = document.createElement('div');
             letterGradeDiv.id = 'letter-grade';
             letterGradeDiv.textContent = analysis.letter_grade || 'N/A';
+            letterGradeDiv.style.color = getGradeColor(analysis.letter_grade);
             resultDiv.appendChild(letterGradeDiv);
 
             // Final Score
