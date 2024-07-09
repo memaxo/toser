@@ -161,8 +161,11 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
 
     # Ensure final_score is within 0-10 range and is a float
     try:
-        analysis['final_score'] = max(0, min(10, float(analysis.get('final_score', 0))))
-    except ValueError:
+        final_score = analysis.get('final_score', 0)
+        if isinstance(final_score, list):
+            final_score = final_score[0] if final_score else 0
+        analysis['final_score'] = max(0, min(10, float(final_score)))
+    except (ValueError, TypeError):
         analysis['final_score'] = 0
 
     # Ensure categories have all required fields
