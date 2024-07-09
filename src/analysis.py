@@ -66,11 +66,11 @@ c) Score (-2 to +2)
 d) Brief justification (30 words max)
 
 Scoring Guide:
--2: Highly concerning or user-unfriendly
--1: Somewhat concerning or below average
- 0: Neutral or industry standard
-+1: User-friendly or above average
-+2: Exceptionally user-friendly or protective of user rights
+0-2: Highly concerning or user-unfriendly
+3-4: Somewhat concerning or below average
+5: Neutral or industry standard
+6-7: User-friendly or above average
+8-10: Exceptionally user-friendly or protective of user rights
 
 Categories:
 1. Clarity and Readability: How easy is the ToS to understand for an average user?
@@ -174,8 +174,8 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
             if field not in category:
                 category[field] = "Not provided" if field != 'score' else 0
 
-        # Ensure category score is within -2 to 2 range
-        category['score'] = max(-2, min(2, float(category['score'])))
+        # Ensure category score is within 0 to 10 range
+        category['score'] = max(0, min(10, float(category['score'])))
 
     # Ensure green_flags and red_flags are lists
     for flag_type in ['green_flags', 'red_flags']:

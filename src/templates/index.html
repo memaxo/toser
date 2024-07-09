@@ -362,7 +362,7 @@
                 datasets: [{
                     label: 'Category Scores',
                     data: analysis.categories.map(c => c.score),
-                    backgroundColor: analysis.categories.map(c => c.score >= 0 ? '#2ECC71' : '#FF6B6B')
+                    backgroundColor: analysis.categories.map(c => c.score >= 5 ? '#2ECC71' : '#FF6B6B')
                 }]
             };
 
@@ -374,8 +374,8 @@
                     scales: {
                         x: {
                             beginAtZero: true,
-                            min: -2,
-                            max: 2,
+                            min: 0,
+                            max: 10,
                             ticks: { color: '#FFFFFF' }
                         },
                         y: {
@@ -398,8 +398,8 @@
                 analysis.categories.forEach((category) => {
                     const categoryCard = document.createElement('div');
                     categoryCard.className = 'category-card';
-                    const scorePercentage = ((category.score + 2) / 4) * 100; // Convert -2 to +2 scale to 0-100%
-                    const scoreColor = category.score >= 0 ? '#2ECC71' : '#FF6B6B';
+                    const scorePercentage = (category.score / 10) * 100; // Convert 0-10 scale to 0-100%
+                    const scoreColor = category.score >= 5 ? '#2ECC71' : '#FF6B6B';
                     categoryCard.innerHTML = `
                         <h3>${category.name}</h3>
                         <div class="score-bar">
