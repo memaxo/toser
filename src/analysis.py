@@ -9,6 +9,8 @@ import google.generativeai as genai
 import logging
 import re
 import unicodedata
+from html import unescape
+from requests.exceptions import Timeout, RequestException
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -38,15 +40,20 @@ def fetch_tos_document(url: str) -> Optional[str]:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=30)  # Increased timeout
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         tos_text = soup.get_text()
-        if not tos_text.strip():
+        tos_text = unescape(tos_text)  # Unescape HTML entities
+        tos_text = re.sub(r'\s+', ' ', tos_text).strip()  # Normalize whitespace
+        if not tos_text:
             logger.warning("Fetched ToS document is empty")
             return None
-        return tos_text
-    except requests.exceptions.RequestException as e:
+        return tos_text[:500000]  # Limit to 500,000 characters
+    except Timeout:
+        logger.error("Timeout error while fetching ToS document")
+        return None
+    except RequestException as e:
         logger.error(f"Error fetching ToS document: {e}")
         return None
     except Exception as e:
@@ -120,7 +127,8 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 top_k=32,
                 max_output_tokens=2048,
                 response_mime_type="application/json"
-            )
+            ),
+            timeout=60  # Set a 60-second timeout for the API call
         )
         
         logger.debug(f"Raw API response: {response}")
@@ -156,6 +164,9 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
     except genai.types.generation_types.BlockedPromptException as e:
         logger.error(f"Blocked prompt exception: {e}")
         return {"error": "The analysis request was blocked due to content restrictions."}
+    except Timeout:
+        logger.error("Timeout error while calling Gemini API")
+        return {"error": "The analysis request timed out. Please try again later."}
     except Exception as e:
         logger.exception("An error occurred while analyzing the Terms of Service")
         return {"error": f"An error occurred while analyzing the Terms of Service: {str(e)}"}

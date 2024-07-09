@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from analysis import fetch_tos_document, extract_company_name, analyze_tos
 import logging
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
@@ -8,11 +10,20 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Configure rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
+@limiter.limit("5 per minute")  # Add rate limiting to the analyze endpoint
 def analyze():
     try:
         data = request.json
