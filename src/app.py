@@ -25,6 +25,10 @@ def analyze():
             logger.warning("No URL provided")
             return jsonify({'error': 'No URL provided'}), 400
 
+        if not url.startswith(('http://', 'https://')):
+            logger.warning("Invalid URL format")
+            return jsonify({'error': 'Invalid URL format. Please include http:// or https://'}), 400
+
         logger.info(f"Attempting to fetch ToS from URL: {url}")
         tos_text = fetch_tos_document(url)
 
@@ -48,17 +52,21 @@ def analyze():
             logger.error(f"Analysis result is missing expected keys: {missing_keys}")
             return jsonify({'error': f'Invalid analysis result structure. Missing keys: {missing_keys}'}), 500
 
-        for category in analysis["categories"]:
+        for category in analysis.get("categories", []):
             if not all(key in category for key in ["name", "user_friendly_aspect", "concerning_aspect", "score", "justification"]):
                 logger.error("Category is missing expected keys")
                 return jsonify({'error': 'Invalid category structure in analysis result'}), 500
 
         # Ensure final_score is a float
-        analysis['final_score'] = float(analysis['final_score'])
+        try:
+            analysis['final_score'] = float(analysis['final_score'])
+        except ValueError:
+            logger.error("Invalid final_score value")
+            analysis['final_score'] = 0.0
 
         # Ensure green_flags and red_flags are lists
-        analysis['green_flags'] = analysis.get('green_flags', [])
-        analysis['red_flags'] = analysis.get('red_flags', [])
+        analysis['green_flags'] = list(analysis.get('green_flags', []))
+        analysis['red_flags'] = list(analysis.get('red_flags', []))
 
         # Ensure summary is a string
         analysis['summary'] = str(analysis.get('summary', 'No summary available.'))

@@ -42,9 +42,15 @@ def fetch_tos_document(url: str) -> Optional[str]:
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         tos_text = soup.get_text()
+        if not tos_text.strip():
+            logger.warning("Fetched ToS document is empty")
+            return None
         return tos_text
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching ToS document: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching ToS document: {e}")
         return None
 
 def extract_company_name(url: str) -> str:
@@ -125,7 +131,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         except (AttributeError, IndexError) as e:
             logger.error(f"Error extracting text from response: {e}")
             logger.debug(f"Response structure: {response}")
-            raise ValueError("Unexpected response format from Gemini API")
+            return {"error": "Unexpected response format from Gemini API"}
         
         logger.debug(f"Response text: {response_text}")
 
@@ -144,6 +150,9 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 "raw_response": response_text[:1000]
             }
 
+    except genai.types.generation_types.BlockedPromptException as e:
+        logger.error(f"Blocked prompt exception: {e}")
+        return {"error": "The analysis request was blocked due to content restrictions."}
     except Exception as e:
         logger.exception("An error occurred while analyzing the Terms of Service")
         return {"error": f"An error occurred while analyzing the Terms of Service: {str(e)}"}
