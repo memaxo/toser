@@ -280,7 +280,7 @@
             // Final Score
             const finalScoreDiv = document.createElement('div');
             finalScoreDiv.id = 'final-score';
-            finalScoreDiv.textContent = `Final Score: ${analysis.final_score?.toFixed(1) || 'N/A'}/10`;
+            finalScoreDiv.textContent = `Final Score: ${analysis.final_score.toFixed(1)}/10`;
             resultDiv.appendChild(finalScoreDiv);
 
             // Initial Assessment
@@ -340,11 +340,11 @@
             resultDiv.appendChild(chartContainer);
 
             const chartData = {
-                labels: analysis.categories?.map(c => c.name) || [],
+                labels: analysis.categories.map(c => c.name),
                 datasets: [{
                     label: 'Category Scores',
-                    data: analysis.categories?.map(c => c.score) || [],
-                    backgroundColor: analysis.categories?.map(c => c.score >= 0 ? '#2ECC71' : '#FF6B6B') || []
+                    data: analysis.categories.map(c => c.score),
+                    backgroundColor: analysis.categories.map(c => c.score >= 0 ? '#2ECC71' : '#FF6B6B')
                 }]
             };
 

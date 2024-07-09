@@ -42,7 +42,7 @@ def analyze():
             return jsonify(analysis), 400
 
         # Validate the structure of the analysis result
-        required_keys = {"initial_assessment", "categories", "final_score", "letter_grade", "summary", "green_flags", "red_flags"}
+        required_keys = {"initial_assessment", "categories", "final_score", "letter_grade", "summary", "green_flags", "red_flags", "company_name"}
         if not all(key in analysis for key in required_keys):
             missing_keys = required_keys - set(analysis.keys())
             logger.error(f"Analysis result is missing expected keys: {missing_keys}")
@@ -52,6 +52,9 @@ def analyze():
             if not all(key in category for key in ["name", "user_friendly_aspect", "concerning_aspect", "score", "justification"]):
                 logger.error("Category is missing expected keys")
                 return jsonify({'error': 'Invalid category structure in analysis result'}), 500
+
+        # Ensure final_score is a float
+        analysis['final_score'] = float(analysis['final_score'])
 
         logger.info("Analysis completed successfully")
         return jsonify(analysis)

@@ -135,6 +135,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         # Post-processing to ensure consistency
         try:
             cleaned_analysis = post_process_analysis(analysis_json)
+            cleaned_analysis['company_name'] = company_name  # Add company name to the analysis result
             return cleaned_analysis
         except ValueError as ve:
             logger.error(f"Error in post-processing: {ve}")
