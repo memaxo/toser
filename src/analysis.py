@@ -208,13 +208,15 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
             # Attempt to parse the cleaned JSON
             parsed_json = json.loads(cleaned_text)
         except json.JSONDecodeError as e:
-            # If it still fails, log the error and return a structured error response
+            # If it still fails, attempt to extract structured data
             logger.error(f"Failed to parse cleaned JSON: {e}")
             logger.error(f"Cleaned text: {cleaned_text[:500]}")
-            return {
-                "error": "Failed to parse the API response as JSON, even after cleaning.",
-                "raw_response": response_text[:1000]
-            }
+            parsed_json = extract_structured_data(cleaned_text)
+            if not parsed_json:
+                return {
+                    "error": "Failed to parse the API response as JSON, even after cleaning.",
+                    "raw_response": response_text[:1000]
+                }
 
     # Restructure the parsed JSON to match expected format
     restructured_json = {
@@ -267,8 +269,8 @@ def clean_json_response(response_text: str) -> str:
     if not response_text.endswith('}'):
         response_text = response_text + '}'
     
-    # Replace single quotes with double quotes
-    response_text = response_text.replace("'", '"')
+    # Replace single quotes with double quotes, but not within words (like apostrophes)
+    response_text = re.sub(r"(?<!\w)'(?!\w)", '"', response_text)
     
     # Handle newlines within string values
     response_text = re.sub(r'(?<!\\)\\n', r'\\n', response_text)
@@ -284,6 +286,12 @@ def clean_json_response(response_text: str) -> str:
     
     # Replace double backslashes with single backslashes
     response_text = response_text.replace("\\\\", "\\")
+    
+    # Ensure all keys are properly quoted
+    response_text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', response_text)
+    
+    # Remove any trailing commas in objects or arrays
+    response_text = re.sub(r',\s*([\]}])', r'\1', response_text)
     
     return response_text
 
@@ -302,3 +310,40 @@ def main():
 
 if __name__ == "__main__":
     main()
+def extract_structured_data(text: str) -> Dict[str, Any]:
+    """
+    Attempt to extract structured data from the text when JSON parsing fails.
+    """
+    data = {}
+    
+    # Extract Initial Assessment
+    initial_assessment_match = re.search(r'"Initial Assessment":\s*"([^"]*)"', text)
+    if initial_assessment_match:
+        data['Initial Assessment'] = initial_assessment_match.group(1)
+    
+    # Extract categories
+    categories = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
+                  "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
+                  "Changes to Terms"]
+    for category in categories:
+        category_match = re.search(rf'"{category}":\s*{{([^}}]*)}}', text)
+        if category_match:
+            category_data = {}
+            category_content = category_match.group(1)
+            for key in ['a', 'b', 'c', 'd']:
+                key_match = re.search(rf'"{key}":\s*"([^"]*)"', category_content)
+                if key_match:
+                    category_data[key] = key_match.group(1)
+            data[category] = category_data
+    
+    # Extract Overall Assessment
+    overall_assessment_match = re.search(r'"Overall Assessment":\s*{{([^}}]*)}}', text)
+    if overall_assessment_match:
+        overall_content = overall_assessment_match.group(1)
+        data['Overall Assessment'] = {}
+        for key in ['Final Score', 'Letter Grade', 'Summary', 'Green Flags', 'Red Flags']:
+            key_match = re.search(rf'"{key}":\s*"?([^",}}]*)"?', overall_content)
+            if key_match:
+                data['Overall Assessment'][key] = key_match.group(1)
+    
+    return data
