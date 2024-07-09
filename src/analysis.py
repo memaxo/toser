@@ -185,17 +185,17 @@ def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
 
 def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     """
-    Attempt to parse JSON, and if it fails, clean and try again.
+    Attempt to parse JSON, clean, and restructure it to match expected format.
     """
     try:
         # First attempt to parse the JSON as-is
-        return json.loads(response_text)
+        parsed_json = json.loads(response_text)
     except json.JSONDecodeError:
         # If parsing fails, apply cleaning steps
         cleaned_text = clean_json_response(response_text)
         try:
             # Attempt to parse the cleaned JSON
-            return json.loads(cleaned_text)
+            parsed_json = json.loads(cleaned_text)
         except json.JSONDecodeError as e:
             # If it still fails, log the error and return a structured error response
             logger.error(f"Failed to parse cleaned JSON: {e}")
@@ -204,6 +204,35 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
                 "error": "Failed to parse the API response as JSON, even after cleaning.",
                 "raw_response": response_text[:1000]
             }
+
+    # Restructure the parsed JSON to match expected format
+    restructured_json = {
+        "initial_assessment": parsed_json.get("Initial Assessment", ""),
+        "categories": [],
+        "final_score": parsed_json.get("Overall Assessment", {}).get("Final Score", 0),
+        "letter_grade": parsed_json.get("Overall Assessment", {}).get("Grade", ""),
+        "summary": parsed_json.get("Overall Assessment", {}).get("Summary", ""),
+        "green_flags": parsed_json.get("Overall Assessment", {}).get("Green Flags", []),
+        "red_flags": parsed_json.get("Overall Assessment", {}).get("Red Flags", [])
+    }
+
+    # Convert category data into list format
+    category_names = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
+                      "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
+                      "Changes to Terms"]
+    
+    for name in category_names:
+        if name in parsed_json:
+            category = parsed_json[name]
+            restructured_json["categories"].append({
+                "name": name,
+                "user_friendly_aspect": category.get("a", ""),
+                "concerning_aspect": category.get("b", ""),
+                "score": float(category.get("c", 0)),
+                "justification": category.get("d", "")
+            })
+
+    return restructured_json
 
 def clean_json_response(response_text: str) -> str:
     """
