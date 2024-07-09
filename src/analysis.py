@@ -279,6 +279,12 @@ def clean_json_response(response_text: str) -> str:
     # Escape unescaped quotes within string values
     response_text = re.sub(r'(?<!\\)"(?=(?:(?:[^"]*"){2})*[^"]*$)', r'\"', response_text)
     
+    # Handle escaped apostrophes
+    response_text = response_text.replace("\\'", "'")
+    
+    # Replace double backslashes with single backslashes
+    response_text = response_text.replace("\\\\", "\\")
+    
     return response_text
 
 def main():
