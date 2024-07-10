@@ -13,30 +13,36 @@
             margin: 0;
             padding: 0;
             background-color: #4B0082;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         .container {
+            width: 100%;
             max-width: 400px;
-            margin: 50px auto;
-            padding: 20px;
+            padding: 30px;
             background-color: #6A0DAD;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1 {
             font-family: 'Montserrat', sans-serif;
             font-size: 2.5rem;
             color: #FFFFFF;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         form {
             display: flex;
             flex-direction: column;
         }
         input {
-            padding: 10px;
-            margin-bottom: 15px;
+            padding: 12px;
+            margin-bottom: 20px;
             border: none;
             border-radius: 4px;
+            font-size: 16px;
         }
         button {
             background-color: #ADD8E6;
@@ -44,16 +50,22 @@
             border: none;
             padding: 12px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             border-radius: 4px;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: bold;
         }
         button:hover {
             background-color: #87CEEB;
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
         }
         .flash-messages {
             list-style-type: none;
             padding: 0;
+            margin-bottom: 20px;
         }
         .flash-message {
             background-color: #FF6B6B;
@@ -61,6 +73,19 @@
             padding: 10px;
             margin-bottom: 10px;
             border-radius: 4px;
+            text-align: center;
+        }
+        p {
+            text-align: center;
+            margin-top: 20px;
+        }
+        a {
+            color: #ADD8E6;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        a:hover {
+            color: #87CEEB;
         }
     </style>
 </head>

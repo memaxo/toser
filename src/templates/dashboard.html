@@ -19,12 +19,18 @@
             margin: 0 auto;
             padding: 20px;
         }
-        h1 {
+        h1, h2 {
             font-family: 'Montserrat', sans-serif;
-            font-size: 2.5rem;
             color: #FFFFFF;
             text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
             margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 2rem;
+            margin-top: 30px;
         }
         .analysis-list {
             display: grid;
@@ -36,10 +42,15 @@
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
-        .analysis-card h2 {
+        .analysis-card:hover {
+            transform: translateY(-5px);
+        }
+        .analysis-card h3 {
             margin-top: 0;
             font-size: 1.5rem;
+            color: #ADD8E6;
         }
         .analysis-card p {
             margin-bottom: 10px;
@@ -47,40 +58,47 @@
         .analysis-card .score {
             font-size: 1.2rem;
             font-weight: bold;
+            color: #ADD8E6;
         }
-        .logout-btn {
-            display: block;
-            width: 100px;
-            margin: 20px auto;
-            padding: 10px;
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
             background-color: #ADD8E6;
             color: #4B0082;
             text-align: center;
             text-decoration: none;
             border-radius: 4px;
             transition: background-color 0.3s;
+            font-weight: bold;
         }
-        .logout-btn:hover {
+        .btn:hover {
             background-color: #87CEEB;
+        }
+        .btn-container {
+            text-align: center;
+            margin-top: 30px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Welcome, {{ current_user.username }}!</h1>
-        <p>Your last login was: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else 'First login' }}</p>
+        <p style="text-align: center;">Your last login was: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else 'First login' }}</p>
         <h2>Your Analyses</h2>
         <div class="analysis-list">
             {% for analysis in analyses %}
             <div class="analysis-card">
-                <h2>{{ analysis.company_name }}</h2>
-                <p>URL: {{ analysis.url }}</p>
-                <p class="score">Score: {{ analysis.result.final_score }}/10</p>
-                <p>Grade: {{ analysis.result.letter_grade }}</p>
+                <h3>{{ analysis.company_name }}</h3>
+                <p><strong>URL:</strong> <a href="{{ analysis.url }}" target="_blank" style="color: #ADD8E6;">{{ analysis.url }}</a></p>
+                <p class="score">Score: {{ "%.1f"|format(analysis.result.final_score) }}/10</p>
+                <p><strong>Grade:</strong> {{ analysis.result.letter_grade }}</p>
             </div>
             {% endfor %}
         </div>
-        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        <div class="btn-container">
+            <a href="{{ url_for('index') }}" class="btn">New Analysis</a>
+            <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+        </div>
     </div>
 </body>
 </html>
