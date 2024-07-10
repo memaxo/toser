@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from analysis import fetch_tos_document, extract_company_name, analyze_tos
 import logging
 from flask_limiter import Limiter
@@ -18,6 +18,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+with app.app_context():
+    db.create_all()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -49,18 +52,22 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        user = User.query.filter_by(username=username).first()
-        if user:
-            flash('Username already exists')
+        existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
+        if existing_user:
+            flash('Username or email already exists')
             return redirect(url_for('register'))
         
         new_user = User(username=username, email=email)
         new_user.set_password(password)
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash('Registration successful')
-        return redirect(url_for('login'))
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred. Please try again.')
+            app.logger.error(f"Error during registration: {str(e)}")
     
     return render_template('register.html')
 
@@ -71,13 +78,15 @@ def login():
         password = request.form.get('password')
         
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
+        if user is None:
+            flash('No user found with that username')
+        elif not user.check_password(password):
+            flash('Incorrect password')
+        else:
             login_user(user)
             user.last_login = datetime.utcnow()
             db.session.commit()
             return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password')
     
     return render_template('login.html')
 
