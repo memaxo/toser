@@ -73,6 +73,8 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password')

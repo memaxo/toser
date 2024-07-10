@@ -67,7 +67,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>Your Analyses</h1>
+        <h1>Welcome, {{ current_user.username }}!</h1>
+        <p>Your last login was: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else 'First login' }}</p>
+        <h2>Your Analyses</h2>
         <div class="analysis-list">
             {% for analysis in analyses %}
             <div class="analysis-card">
