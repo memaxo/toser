@@ -9,6 +9,7 @@ import google.generativeai as genai
 import os
 from models import db, User, Analysis
 from datetime import datetime
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "your_secret_key")
@@ -167,7 +168,7 @@ def analyze():
         new_analysis = Analysis(
             url=url,
             company_name=company_name,
-            result=analysis,
+            result=json.dumps(analysis),  # Serialize the analysis dict to a JSON string
             user_id=current_user.id
         )
         db.session.add(new_analysis)

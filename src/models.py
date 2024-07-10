@@ -37,7 +37,7 @@ class Analysis(db.Model):
         self.result = json.dumps(result_dict)
 
     def get_result(self):
-        return json.loads(self.result)
+        return json.loads(self.result) if self.result else {}
 
     def __repr__(self):
         return f'<Analysis {self.company_name}>'
