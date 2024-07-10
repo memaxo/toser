@@ -3,6 +3,8 @@ from analysis import fetch_tos_document, extract_company_name, analyze_tos
 import logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import google.generativeai as genai
+import os
 
 app = Flask(__name__)
 
@@ -18,12 +20,15 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
+# Configure Gemini API
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
-@limiter.limit("5 per minute")  # Add rate limiting to the analyze endpoint
+@limiter.limit("5 per minute")
 def analyze():
     try:
         data = request.json
@@ -86,21 +91,9 @@ def analyze():
         logger.debug(f"Sending analysis to frontend: {analysis}")
         return jsonify(analysis)
 
-    except ValueError as ve:
-        logger.error(f"ValueError in analysis: {str(ve)}")
-        return jsonify({'error': str(ve)}), 400
     except Exception as e:
         logger.exception("An unexpected error occurred during analysis")
         return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    logger.exception("An internal server error occurred")
-    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

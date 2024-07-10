@@ -34,24 +34,14 @@ class TosAnalysis(TypedDict):
     summary: str
     green_flags: List[str]
     red_flags: List[str]
-    company_name: str  # Add this field to match the expected structure
-
-class TosAnalysis(TypedDict):
-    initial_assessment: str
-    categories: List[Category]
-    final_score: float
-    letter_grade: str
-    summary: str
-    green_flags: List[str]
-    red_flags: List[str]
-    company_name: str  # Add this field to match the expected structure
+    company_name: str
 
 def fetch_tos_document(url: str) -> Optional[str]:
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=30)  # Increased timeout
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         tos_text = soup.get_text()
@@ -132,7 +122,7 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         return {"error": "GEMINI_API_KEY environment variable is not set."}
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         prompt = generate_tos_analysis_prompt(company_name, tos_text)
 
@@ -143,99 +133,60 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
                 top_p=1,
                 top_k=32,
                 max_output_tokens=2048,
-                response_mime_type="application/json",
-                response_schema=TosAnalysis
+                response_mime_type="application/json"
+                # Remove response_schema as it's causing issues
             )
         )
         
         logger.debug(f"Raw API response: {response}")
 
-        try:
-            # Extract the text content from the response
-            response_text = response.text
-            # Parse the JSON content
-            analysis_result = json.loads(response_text)
-        except json.JSONDecodeError as e:
-            logger.error(f"Error parsing JSON response: {e}")
-            return {"error": "Unable to parse the JSON response from Gemini API"}
-        except AttributeError as e:
-            logger.error(f"Error accessing response content: {e}")
-            return {"error": "Unable to access the response content from Gemini API"}
+        # Check if the response has content
+        if not response.candidates or not response.candidates[0].content:
+            raise ValueError("No content in the API response")
+
+        # Extract the text content from the response
+        response_text = response.candidates[0].content.parts[0].text
+        
+        # Parse the JSON content
+        analysis_result = json.loads(response_text)
 
         # Post-processing to ensure consistency
-        try:
-            cleaned_analysis = post_process_analysis(analysis_result)
-            cleaned_analysis['company_name'] = company_name  # Add company name to the analysis result
-            return cleaned_analysis
-        except ValueError as ve:
-            logger.error(f"Error in post-processing: {ve}")
-            return {
-                "error": f"Error in post-processing: {str(ve)}",
-                "raw_response": str(response)[:1000]
-            }
+        cleaned_analysis = post_process_analysis(analysis_result)
+        cleaned_analysis['company_name'] = company_name
+
+        return cleaned_analysis
 
     except genai.types.generation_types.BlockedPromptException as e:
         logger.error(f"Blocked prompt exception: {e}")
         return {"error": "The analysis request was blocked due to content restrictions."}
-    except Timeout:
-        logger.error("Timeout error while calling Gemini API")
-        return {"error": "The analysis request timed out. Please try again later."}
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing JSON response: {e}")
+        return {"error": "Unable to parse the JSON response from Gemini API"}
     except Exception as e:
         logger.exception("An error occurred while analyzing the Terms of Service")
         return {"error": f"An error occurred while analyzing the Terms of Service: {str(e)}"}
 
 def post_process_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
-    # Check if the analysis is a dictionary
-    if not isinstance(analysis, dict):
-        raise ValueError(f"Expected dictionary, got {type(analysis)}")
-    
-    # Extract initial assessment
-    initial_assessment = analysis.get('Initial Assessment', {})
-    if isinstance(initial_assessment, dict):
-        analysis['initial_assessment'] = initial_assessment.get('notable_aspects', [])
-    else:
-        analysis['initial_assessment'] = []
+    # Ensure all required fields are present and properly formatted
+    analysis['initial_assessment'] = str(analysis.get('initial_assessment', ''))
+    analysis['final_score'] = max(0, min(10, float(analysis.get('final_score', 0))))
+    analysis['letter_grade'] = str(analysis.get('letter_grade', ''))
+    analysis['summary'] = str(analysis.get('summary', ''))
+    analysis['green_flags'] = list(analysis.get('green_flags', []))
+    analysis['red_flags'] = list(analysis.get('red_flags', []))
 
-    # Extract categories
+    # Ensure categories are properly structured
     categories = []
-    category_names = [
-        "Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
-        "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
-        "Changes to Terms"
-    ]
-    for name in category_names:
-        category = analysis.get(name, {})
+    for category in analysis.get('categories', []):
         if isinstance(category, dict):
             categories.append({
-                'name': name,
-                'user_friendly_aspect': category.get('user_friendly_aspect', ''),
-                'concerning_aspect': category.get('concerning_aspect', ''),
-                'score': float(category.get('score', 0)),
-                'justification': category.get('justification', '')
+                'name': str(category.get('name', '')),
+                'user_friendly_aspect': str(category.get('user_friendly_aspect', '')),
+                'concerning_aspect': str(category.get('concerning_aspect', '')),
+                'score': max(0, min(10, float(category.get('score', 0)))),
+                'justification': str(category.get('justification', ''))
             })
     analysis['categories'] = categories
-
-    # Extract overall assessment
-    overall_assessment = analysis.get('Overall Assessment', {})
-    if isinstance(overall_assessment, dict):
-        analysis['final_score'] = float(overall_assessment.get('final_score', 0))
-        analysis['letter_grade'] = overall_assessment.get('letter_grade', '')
-        analysis['summary'] = overall_assessment.get('summary', '')
-        analysis['green_flags'] = overall_assessment.get('green_flags', [])
-        analysis['red_flags'] = overall_assessment.get('red_flags', [])
-    else:
-        analysis['final_score'] = 0
-        analysis['letter_grade'] = ''
-        analysis['summary'] = ''
-        analysis['green_flags'] = []
-        analysis['red_flags'] = []
-
-    # Ensure all required fields are present and properly formatted
-    analysis['final_score'] = max(0, min(10, float(analysis['final_score'])))
-    analysis['letter_grade'] = str(analysis['letter_grade'])
-    analysis['summary'] = str(analysis['summary'])
-    analysis['green_flags'] = list(analysis['green_flags'])
-    analysis['red_flags'] = list(analysis['red_flags'])
 
     return analysis
 
@@ -313,7 +264,7 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
 
     # Restructure the parsed JSON to match expected format
     restructured_json = {
-        "initial_assessment": str(parsed_json.get("Initial Assessment", "")),
+        "initial_assessment": str(parsed_json.get("initial_assessment", "")),
         "categories": [],
         "final_score": 0,
         "letter_grade": "",
@@ -323,42 +274,40 @@ def parse_and_clean_json(response_text: str) -> Dict[str, Any]:
     }
 
     # Extract Overall Assessment data
-    overall_assessment = parsed_json.get("Overall Assessment", {})
+    overall_assessment = parsed_json.get("overall_assessment", {})
     if isinstance(overall_assessment, dict):
-        restructured_json["final_score"] = safe_float(overall_assessment.get("Final Score", 0))
-        restructured_json["letter_grade"] = str(overall_assessment.get("Letter Grade", ""))
-        restructured_json["summary"] = str(overall_assessment.get("Summary", ""))
-        restructured_json["green_flags"] = list(overall_assessment.get("Green Flags", []))
-        restructured_json["red_flags"] = list(overall_assessment.get("Red Flags", []))
+        restructured_json["final_score"] = safe_float(overall_assessment.get("final_score", 0))
+        restructured_json["letter_grade"] = str(overall_assessment.get("letter_grade", ""))
+        restructured_json["summary"] = str(overall_assessment.get("summary", ""))
+        restructured_json["green_flags"] = list(overall_assessment.get("green_flags", []))
+        restructured_json["red_flags"] = list(overall_assessment.get("red_flags", []))
 
     # Convert category data into list format
     category_names = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
                       "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
                       "Changes to Terms"]
     
-    categories = parsed_json.get("Categories", [])
+    categories = parsed_json.get("categories", [])
     if isinstance(categories, list):
         for category in categories:
-            for name in category_names:
-                if name in category:
-                    cat_data = category[name]
-                    restructured_json["categories"].append({
-                        "name": name,
-                        "user_friendly_aspect": str(cat_data.get("a", "")),
-                        "concerning_aspect": str(cat_data.get("b", "")),
-                        "score": safe_float(cat_data.get("c", 0)),
-                        "justification": str(cat_data.get("d", ""))
-                    })
+            if isinstance(category, dict):
+                restructured_json["categories"].append({
+                    "name": str(category.get("name", "")),
+                    "user_friendly_aspect": str(category.get("user_friendly_aspect", "")),
+                    "concerning_aspect": str(category.get("concerning_aspect", "")),
+                    "score": safe_float(category.get("score", 0)),
+                    "justification": str(category.get("justification", ""))
+                })
     elif isinstance(categories, dict):
         for name in category_names:
             if name in categories:
                 cat_data = categories[name]
                 restructured_json["categories"].append({
                     "name": name,
-                    "user_friendly_aspect": str(cat_data.get("a", "")),
-                    "concerning_aspect": str(cat_data.get("b", "")),
-                    "score": safe_float(cat_data.get("c", 0)),
-                    "justification": str(cat_data.get("d", ""))
+                    "user_friendly_aspect": str(cat_data.get("user_friendly_aspect", "")),
+                    "concerning_aspect": str(cat_data.get("concerning_aspect", "")),
+                    "score": safe_float(cat_data.get("score", 0)),
+                    "justification": str(cat_data.get("justification", ""))
                 })
 
     return restructured_json
@@ -420,6 +369,53 @@ def clean_json_response(response_text: str) -> str:
     
     return response_text
 
+def extract_structured_data(text: str) -> Dict[str, Any]:
+    """
+    Attempt to extract structured data from the text when JSON parsing fails.
+    """
+    data = {}
+    
+    # Extract Initial Assessment
+    initial_assessment_match = re.search(r'"initial_assessment":\s*"([^"]*)"', text, re.IGNORECASE)
+    if initial_assessment_match:
+        data['initial_assessment'] = initial_assessment_match.group(1)
+    
+    # Extract categories
+    categories = []
+    category_pattern = r'"name":\s*"([^"]*)".*?"user_friendly_aspect":\s*"([^"]*)".*?"concerning_aspect":\s*"([^"]*)".*?"score":\s*([\d.]+).*?"justification":\s*"([^"]*)"'
+    for match in re.finditer(category_pattern, text, re.DOTALL):
+        categories.append({
+            "name": match.group(1),
+            "user_friendly_aspect": match.group(2),
+            "concerning_aspect": match.group(3),
+            "score": float(match.group(4)),
+            "justification": match.group(5)
+        })
+    data['categories'] = categories
+    
+    # Extract overall assessment data
+    final_score_match = re.search(r'"final_score":\s*([\d.]+)', text)
+    if final_score_match:
+        data['final_score'] = float(final_score_match.group(1))
+    
+    letter_grade_match = re.search(r'"letter_grade":\s*"([^"]*)"', text)
+    if letter_grade_match:
+        data['letter_grade'] = letter_grade_match.group(1)
+    
+    summary_match = re.search(r'"summary":\s*"([^"]*)"', text)
+    if summary_match:
+        data['summary'] = summary_match.group(1)
+    
+    green_flags_match = re.search(r'"green_flags":\s*\[(.*?)\]', text, re.DOTALL)
+    if green_flags_match:
+        data['green_flags'] = [flag.strip().strip('"') for flag in green_flags_match.group(1).split(',')]
+    
+    red_flags_match = re.search(r'"red_flags":\s*\[(.*?)\]', text, re.DOTALL)
+    if red_flags_match:
+        data['red_flags'] = [flag.strip().strip('"') for flag in red_flags_match.group(1).split(',')]
+    
+    return data
+
 def main():
     tos_url = input("Enter the URL of the Terms of Service document: ")
     tos_text = fetch_tos_document(tos_url)
@@ -435,40 +431,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-def extract_structured_data(text: str) -> Dict[str, Any]:
-    """
-    Attempt to extract structured data from the text when JSON parsing fails.
-    """
-    data = {}
-    
-    # Extract Initial Assessment
-    initial_assessment_match = re.search(r'"Initial Assessment":\s*"([^"]*)"', text)
-    if initial_assessment_match:
-        data['Initial Assessment'] = initial_assessment_match.group(1)
-    
-    # Extract categories
-    categories = ["Clarity and Readability", "Privacy and Data Security", "Data Collection and Usage",
-                  "User Rights and Control", "Liability and Disclaimers", "Termination and Account Suspension",
-                  "Changes to Terms"]
-    for category in categories:
-        category_match = re.search(rf'"{category}":\s*{{([^}}]*)}}', text)
-        if category_match:
-            category_data = {}
-            category_content = category_match.group(1)
-            for key in ['a', 'b', 'c', 'd']:
-                key_match = re.search(rf'"{key}":\s*"([^"]*)"', category_content)
-                if key_match:
-                    category_data[key] = key_match.group(1)
-            data[category] = category_data
-    
-    # Extract Overall Assessment
-    overall_assessment_match = re.search(r'"Overall Assessment":\s*{{([^}}]*)}}', text)
-    if overall_assessment_match:
-        overall_content = overall_assessment_match.group(1)
-        data['Overall Assessment'] = {}
-        for key in ['Final Score', 'Letter Grade', 'Summary', 'Green Flags', 'Red Flags']:
-            key_match = re.search(rf'"{key}":\s*"?([^",}}]*)"?', overall_content)
-            if key_match:
-                data['Overall Assessment'][key] = key_match.group(1)
-    
-    return data
