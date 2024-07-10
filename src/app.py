@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from analysis import fetch_tos_document, extract_company_name, analyze_tos
 import logging
 from flask_limiter import Limiter
