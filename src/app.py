@@ -1,20 +1,21 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from analysis import fetch_tos_document, extract_company_name, analyze_tos
 import logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import google.generativeai as genai
 import os
+from models import db, User, Analysis
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "your_secret_key")
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///asklivie.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -32,28 +33,6 @@ limiter.init_app(app)
 
 # Configure Gemini API
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# User model
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
-    analyses = db.relationship('Analysis', backref='user', lazy=True)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-# Analysis model
-class Analysis(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    url = db.Column(db.String(500), nullable=False)
-    company_name = db.Column(db.String(100), nullable=False)
-    result = db.Column(db.JSON, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
