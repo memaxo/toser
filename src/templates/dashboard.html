@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AskLivie</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            line-height: 1.6;
+            color: #FFFFFF;
+            margin: 0;
+            padding: 0;
+            background-color: #4B0082;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.5rem;
+            color: #FFFFFF;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .analysis-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .analysis-card {
+            background-color: #6A0DAD;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .analysis-card h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .analysis-card p {
+            margin-bottom: 10px;
+        }
+        .analysis-card .score {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .logout-btn {
+            display: block;
+            width: 100px;
+            margin: 20px auto;
+            padding: 10px;
+            background-color: #ADD8E6;
+            color: #4B0082;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .logout-btn:hover {
+            background-color: #87CEEB;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Analyses</h1>
+        <div class="analysis-list">
+            {% for analysis in analyses %}
+            <div class="analysis-card">
+                <h2>{{ analysis.company_name }}</h2>
+                <p>URL: {{ analysis.url }}</p>
+                <p class="score">Score: {{ analysis.result.final_score }}/10</p>
+                <p>Grade: {{ analysis.result.letter_grade }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+    </div>
+</body>
+</html>
