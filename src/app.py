@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from analysis import fetch_tos_document, extract_company_name, analyze_tos
@@ -8,13 +8,15 @@ from flask_limiter.util import get_remote_address
 import google.generativeai as genai
 import os
 from models import db, User, Analysis
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+from werkzeug.exceptions import TooManyRequests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "your_secret_key")
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///asklivie.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -42,6 +44,10 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -52,6 +58,10 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
+        
+        if not username or not email or not password:
+            flash('All fields are required')
+            return redirect(url_for('register'))
         
         existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
         if existing_user:
@@ -68,7 +78,7 @@ def register():
         except Exception as e:
             db.session.rollback()
             flash('An error occurred. Please try again.')
-            app.logger.error(f"Error during registration: {str(e)}")
+            logger.error(f"Error during registration: {str(e)}")
     
     return render_template('register.html')
 
@@ -77,6 +87,10 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
+        if not username or not password:
+            flash('Both username and password are required')
+            return redirect(url_for('login'))
         
         user = User.query.filter_by(username=username).first()
         if user is None:
@@ -100,8 +114,9 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    analyses = Analysis.query.filter_by(user_id=current_user.id).all()
-    return render_template('dashboard.html', analyses=analyses)
+    analyses = Analysis.query.filter_by(user_id=current_user.id).order_by(Analysis.created_at.desc()).all()
+    parsed_analyses = [(analysis, analysis.get_parsed_result()) for analysis in analyses]
+    return render_template('dashboard.html', analyses=parsed_analyses)
 
 @app.route('/analyze', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -128,6 +143,10 @@ def analyze():
         if not tos_text:
             logger.error(f"Unable to fetch the Terms of Service document from: {url}")
             return jsonify({'error': 'Unable to fetch the Terms of Service document. Please check the URL and try again.'}), 400
+
+        if len(tos_text) < 100:
+            logger.warning(f"ToS document is too short: {len(tos_text)} characters")
+            return jsonify({'error': 'The fetched document is too short to be a valid Terms of Service.'}), 400
 
         company_name = extract_company_name(url)
         logger.info(f"Analyzing ToS for company: {company_name}")
@@ -158,11 +177,11 @@ def analyze():
             analysis['final_score'] = 0.0
 
         # Ensure green_flags and red_flags are lists
-        analysis['green_flags'] = list(analysis.get('green_flags', []))
-        analysis['red_flags'] = list(analysis.get('red_flags', []))
+        analysis['green_flags'] = list(analysis.get('green_flags', []))[:3]  # Limit to top 3
+        analysis['red_flags'] = list(analysis.get('red_flags', []))[:3]  # Limit to top 3
 
-        # Ensure summary is a string
-        analysis['summary'] = str(analysis.get('summary', 'No summary available.'))
+        # Ensure summary is a string and limit its length
+        analysis['summary'] = str(analysis.get('summary', 'No summary available.'))[:500]  # Limit to 500 characters
 
         # Save the analysis to the database
         new_analysis = Analysis(
@@ -178,9 +197,21 @@ def analyze():
         logger.debug(f"Sending analysis to frontend: {analysis}")
         return jsonify(analysis)
 
+    except TooManyRequests:
+        logger.warning(f"Rate limit exceeded for user: {current_user.id}")
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
     except Exception as e:
         logger.exception("An unexpected error occurred during analysis")
         return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -11,6 +11,7 @@ import re
 import unicodedata
 from html import unescape
 from requests.exceptions import Timeout, RequestException
+import ast
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -147,8 +148,8 @@ def analyze_tos(tos_text: str, company_name: str) -> Dict[str, Any]:
         # Extract the text content from the response
         response_text = response.candidates[0].content.parts[0].text
         
-        # Parse the JSON content
-        analysis_result = json.loads(response_text)
+        # Parse the JSON content using ast.literal_eval
+        analysis_result = ast.literal_eval(response_text)
 
         # Post-processing to ensure consistency
         cleaned_analysis = post_process_analysis(analysis_result)

@@ -86,12 +86,12 @@
         <p style="text-align: center;">Your last login was: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else 'First login' }}</p>
         <h2>Your Analyses</h2>
         <div class="analysis-list">
-            {% for analysis in analyses %}
+            {% for analysis, result in analyses %}
             <div class="analysis-card">
                 <h3>{{ analysis.company_name }}</h3>
                 <p><strong>URL:</strong> <a href="{{ analysis.url }}" target="_blank" style="color: #ADD8E6;">{{ analysis.url }}</a></p>
-                <p class="score">Score: {{ "%.1f"|format(analysis.result.final_score) }}/10</p>
-                <p><strong>Grade:</strong> {{ analysis.result.letter_grade }}</p>
+                <p class="score">Score: {{ "%.1f"|format(result.final_score) }}/10</p>
+                <p><strong>Grade:</strong> {{ result.letter_grade }}</p>
             </div>
             {% endfor %}
         </div>
